@@ -1,4 +1,5 @@
 import type { NormalizedOffer } from "./types";
+import { extractEmailFromText } from "./extractEmail";
 
 // Arbeitnow : API publique gratuite, aucune clé requise.
 // Pas de paramètre de recherche côté API — on récupère le flux et on filtre nous-mêmes.
@@ -23,7 +24,7 @@ export async function searchArbeitnow(params: { query: string }): Promise<Normal
     titre: o.title ?? "Offre sans titre",
     entreprise: o.company_name ?? "Entreprise non communiquée",
     lieu: o.location || (o.remote ? "Remote" : ""),
-    contact: null,
+    contact: extractEmailFromText(o.description),
     exigences: (o.tags ?? []).join(", "),
     source: "Arbeitnow",
     url: o.url ?? null,

@@ -1,4 +1,5 @@
 import type { NormalizedOffer } from "./types";
+import { extractEmailFromText } from "./extractEmail";
 
 export async function searchAdzuna(params: {
   appId: string;
@@ -29,7 +30,7 @@ export async function searchAdzuna(params: {
     titre: o.title ?? "Offre sans titre",
     entreprise: o.company?.display_name ?? "Entreprise non communiquée",
     lieu: o.location?.display_name ?? "",
-    contact: null,
+    contact: extractEmailFromText(o.description),
     exigences: (o.description ?? "").slice(0, 400),
     source: "Adzuna",
     url: o.redirect_url ?? null,

@@ -263,7 +263,7 @@ export default function Workspace_({
                       <td>{o.url ? <a className="link" href={o.url} target="_blank" rel="noreferrer">{o.titre}</a> : o.titre}</td>
                       <td>{o.entreprise}</td>
                       <td>{o.lieu}</td>
-                      <td>{o.contact ?? <span className="muted">non trouvé</span>}</td>
+                      <td>{o.contact ?? <span className="muted">via lien</span>}</td>
                       <td style={{ whiteSpace: "pre-line" }}>{o.exigences}</td>
                       <td className="muted">{o.source}</td>
                     </tr>
@@ -286,18 +286,30 @@ export default function Workspace_({
             <div className="panel">
               <h2>Offres retenues</h2>
               <p className="muted">
-                {selectedOffers.length} offre(s) cochée(s) dans l'onglet Recherche. La génération de
-                lettres et l'envoi d'email arrivent dans une prochaine version — toujours avec validation
-                humaine explicite avant tout envoi.
+                {selectedOffers.length} offre(s) cochée(s) dans l'onglet Recherche. La plupart des offres
+                n'exposent pas d'email de contact (les jobboards poussent volontairement vers un lien de
+                candidature plutôt qu'un email, pour éviter le spam) — le bouton "Postuler" ci-dessous
+                ouvre ce lien. La génération de lettres et l'envoi d'email arrivent dans une prochaine
+                version pour les offres qui, elles, exposent un email — toujours avec validation humaine
+                explicite avant tout envoi.
               </p>
               {selectedOffers.map((o) => (
                 <div className="panel" style={{ marginBottom: 12 }} key={o.id}>
                   <div className="row" style={{ justifyContent: "space-between" }}>
                     <div>
                       <strong>{o.titre}</strong> — {o.entreprise}
-                      <div className="muted">{o.contact ?? "pas d'email de contact"}</div>
+                      <div className="muted">
+                        {o.contact ? `Email : ${o.contact}` : "Pas d'email de contact — via lien uniquement"}
+                      </div>
                     </div>
-                    <span className="muted">{o.source}</span>
+                    <div className="row">
+                      <span className="muted">{o.source}</span>
+                      {o.url ? (
+                        <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                          Postuler ↗
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ))}

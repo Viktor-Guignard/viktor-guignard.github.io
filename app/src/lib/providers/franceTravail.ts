@@ -1,4 +1,5 @@
 import type { NormalizedOffer } from "./types";
+import { extractEmailFromText } from "./extractEmail";
 
 const TOKEN_URL =
   "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
@@ -64,7 +65,7 @@ export async function searchFranceTravail(params: {
     titre: o.intitule ?? "Offre sans titre",
     entreprise: o.entreprise?.nom ?? "Entreprise non communiquée",
     lieu: o.lieuTravail?.libelle ?? "",
-    contact: o.contact?.courriel ?? null,
+    contact: o.contact?.courriel ?? extractEmailFromText(o.description, o.entreprise?.description),
     exigences: [
       ...(o.competences ?? []).map((c: any) => c.libelle),
       o.experienceLibelle,
