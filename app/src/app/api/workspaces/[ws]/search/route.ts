@@ -6,10 +6,14 @@ import { searchFranceTravail } from "@/lib/providers/franceTravail";
 import { searchAdzuna } from "@/lib/providers/adzuna";
 import { searchGoogleCse } from "@/lib/providers/googleCse";
 import { searchArbeitnow } from "@/lib/providers/arbeitnow";
+import { excludeStagesAlternance } from "@/lib/providers/filterContract";
 import type { NormalizedOffer } from "@/lib/providers/types";
 
-export async function POST(_req: NextRequest, { params }: { params: { ws: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { ws: string } }) {
   if (!isWorkspace(params.ws)) return NextResponse.json({ error: "workspace inconnu" }, { status: 404 });
+
+  const body = await req.json().catch(() => ({}));
+  const cdiCddOnly = body?.cdiCddOnly !== false;
 
   const [profile, settings] = await Promise.all([
     prisma.profile.findUnique({ where: { workspace: params.ws } }),
@@ -30,6 +34,7 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
       clientSecret: settings?.franceTravailSecretEnc ? decryptSecret(settings.franceTravailSecretEnc) : "",
       motsCles: profile.poste,
       codePostal: profile.localisation,
+      cdiCddOnly,
     }),
     searchAdzuna({
       appId: settings?.adzunaAppId ?? "",
@@ -46,7 +51,7 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
   ]);
 
   const labels = ["France Travail", "Adzuna", "Google CSE", "Arbeitnow"];
-  const offers: NormalizedOffer[] = [];
+  let offers: NormalizedOffer[] = [];
   results.forEach((r, i) => {
     if (r.status === "fulfilled") offers.push(...r.value);
     else {
@@ -54,6 +59,8 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
       errors.push(`${labels[i]} : ${r.reason?.message ?? "erreur inconnue"}${cause ? ` (${cause})` : ""}`);
     }
   });
+
+  if (cdiCddOnly) offers = excludeStagesAlternance(offers);
 
   for (const o of offers) {
     await prisma.offer.upsert({
@@ -63,11 +70,14 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
     });
   }
 
-  const stored = await prisma.offer.findMany({
+  let stored = await prisma.offer.findMany({
     where: { workspace: params.ws },
     orderBy: { createdAt: "desc" },
     take: 60,
   });
+  // Masque aussi les stages/alternances déjà en base d'une recherche précédente
+  // (avant l'ajout de ce filtre), sans attendre qu'ils ressortent d'un nouveau scan.
+  if (cdiCddOnly) stored = excludeStagesAlternance(stored);
 
   return NextResponse.json({ offers: stored, foundCount: offers.length, errors });
 }

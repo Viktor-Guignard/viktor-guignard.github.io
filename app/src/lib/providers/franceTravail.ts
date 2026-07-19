@@ -40,6 +40,7 @@ export async function searchFranceTravail(params: {
   clientSecret: string;
   motsCles: string;
   codePostal?: string;
+  cdiCddOnly?: boolean;
 }): Promise<NormalizedOffer[]> {
   if (!params.clientId || !params.clientSecret || !params.motsCles) return [];
 
@@ -50,6 +51,11 @@ export async function searchFranceTravail(params: {
     const departement = departementFromCodePostal(params.codePostal);
     if (departement) qs.set("departement", departement);
   }
+
+  // Réduit le bruit côté API — mais n'exclut pas les alternances/stages, classées
+  // en CDD par France Travail : le filtrage par mots-clés se fait ensuite en aval,
+  // uniformément sur toutes les sources (voir excludeStagesAlternance).
+  if (params.cdiCddOnly) qs.set("typeContrat", "CDI,CDD");
 
   const res = await fetch(`${SEARCH_URL}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },

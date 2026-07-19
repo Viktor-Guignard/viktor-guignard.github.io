@@ -61,6 +61,7 @@ export default function Workspace_({
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [cdiCddOnly, setCdiCddOnly] = useState(true);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const linkedinUrl =
@@ -111,7 +112,11 @@ export default function Workspace_({
     setSearching(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/workspaces/${ws}/search`, { method: "POST" });
+      const res = await fetch(`/api/workspaces/${ws}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cdiCddOnly }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Échec de la recherche.");
       setOffers(data.offers);
@@ -228,6 +233,13 @@ export default function Workspace_({
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <h2>Offres CDI</h2>
                 <div className="row">
+                  <button
+                    type="button"
+                    className={cdiCddOnly ? "" : "secondary"}
+                    onClick={() => setCdiCddOnly((v) => !v)}
+                  >
+                    {cdiCddOnly ? "✓ CDI/CDD uniquement" : "CDI/CDD uniquement"}
+                  </button>
                   <a className="link" href={linkedinUrl} target="_blank" rel="noreferrer">
                     Ouvrir la recherche LinkedIn ↗
                   </a>
@@ -239,6 +251,7 @@ export default function Workspace_({
               <p className="muted">
                 Recherche réelle via France Travail, Adzuna, Google et Arbeitnow — configure tes clés dans
                 l'onglet Réglages. Aucune automatisation LinkedIn : le lien ci-dessus s'ouvre manuellement.
+                {cdiCddOnly ? " Stages et alternances exclus des résultats." : " Stages et alternances inclus."}
                 Les offres avec un email de contact sont affichées en premier ; la plupart des jobboards
                 n'en fournissent volontairement pas (anti-spam), ces offres restent accessibles via leur
                 lien de candidature, plus bas.
