@@ -4,6 +4,28 @@ const TOKEN_URL =
   "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
 const SEARCH_URL = "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search";
 
+// Résout un nom de ville en texte libre ("Paris", "Lyon"...) vers son code département,
+// seul format accepté de façon fiable par le paramètre "departement" de l'API France
+// Travail (le paramètre "commune" est rejeté même avec un code INSEE valide).
+// Service public gratuit, sans clé. En cas d'échec, on renvoie null et la recherche
+// se fait sans filtre de lieu (le champ reste affiché dans les résultats).
+async function resolveDepartementCode(cityName: string): Promise<string | null> {
+  try {
+    const qs = new URLSearchParams({
+      nom: cityName,
+      fields: "codeDepartement",
+      boost: "population",
+      limit: "1",
+    });
+    const res = await fetch(`https://geo.api.gouv.fr/communes?${qs.toString()}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.[0]?.codeDepartement ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
@@ -32,9 +54,14 @@ export async function searchFranceTravail(params: {
   if (!params.clientId || !params.clientSecret || !params.motsCles) return [];
 
   const token = await getAccessToken(params.clientId, params.clientSecret);
-  // "commune" attend un code INSEE à 5 chiffres, pas un nom de ville en texte libre —
-  // la localisation reste affichée dans les résultats mais ne filtre pas la requête.
   const qs = new URLSearchParams({ motsCles: params.motsCles, range: "0-14" });
+
+  // Ex: "Paris / télétravail" -> "Paris" -> département "75"
+  const cityGuess = params.localisation?.split(/[/,]/)[0]?.trim();
+  if (cityGuess) {
+    const departement = await resolveDepartementCode(cityGuess);
+    if (departement) qs.set("departement", departement);
+  }
 
   const res = await fetch(`${SEARCH_URL}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
