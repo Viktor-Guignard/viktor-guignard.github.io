@@ -46,7 +46,9 @@ export async function searchFranceTravail(params: {
   if (!params.clientId || !params.clientSecret || !params.motsCles) return [];
 
   const token = await getAccessToken(params.clientId, params.clientSecret);
-  const qs = new URLSearchParams({ motsCles: params.motsCles, range: "0-14" });
+  // 50 offres au lieu de 15 : seules ~6% des annonces exposent un email, donc plus on
+  // en récupère, plus on a de chances d'en surfacer un exploitable.
+  const qs = new URLSearchParams({ motsCles: params.motsCles, range: "0-49" });
 
   if (params.codePostal) {
     const departement = departementFromCodePostal(params.codePostal);
@@ -72,7 +74,14 @@ export async function searchFranceTravail(params: {
     // o.contact?.courriel contient parfois une phrase du type "Pour postuler, utiliser le
     // lien suivant : https://..." au lieu d'un vrai email — on repasse tout par l'extracteur
     // qui ne retient qu'un motif email valide, quelle que soit la source du texte.
-    contact: extractEmailFromText(o.contact?.courriel, o.description, o.entreprise?.description),
+    contact: extractEmailFromText(
+      o.contact?.courriel,
+      o.contact?.coordonnees1,
+      o.contact?.coordonnees2,
+      o.contact?.coordonnees3,
+      o.description,
+      o.entreprise?.description
+    ),
     exigences: [
       ...(o.competences ?? []).map((c: any) => c.libelle),
       o.experienceLibelle,
