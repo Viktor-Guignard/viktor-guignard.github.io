@@ -139,7 +139,9 @@ export default function Workspace_({
     });
   }
 
-  const selectedOffers = offers.filter((o) => o.selected);
+  const withEmail = offers.filter((o) => o.contact);
+  const withoutEmail = offers.filter((o) => !o.contact);
+  const selectedOffers = withEmail.filter((o) => o.selected);
 
   return (
     <div className="site" data-theme={ws}>
@@ -235,8 +237,11 @@ export default function Workspace_({
                 </div>
               </div>
               <p className="muted">
-                Recherche réelle via France Travail, Adzuna et Google — configure tes clés dans l'onglet
-                Réglages. Aucune automatisation LinkedIn : le lien ci-dessus s'ouvre manuellement.
+                Recherche réelle via France Travail, Adzuna, Google et Arbeitnow — configure tes clés dans
+                l'onglet Réglages. Aucune automatisation LinkedIn : le lien ci-dessus s'ouvre manuellement.
+                Les offres avec un email de contact sont affichées en premier ; la plupart des jobboards
+                n'en fournissent volontairement pas (anti-spam), ces offres restent accessibles via leur
+                lien de candidature, plus bas.
               </p>
               <table>
                 <thead>
@@ -251,7 +256,7 @@ export default function Workspace_({
                   </tr>
                 </thead>
                 <tbody>
-                  {offers.map((o) => (
+                  {withEmail.map((o) => (
                     <tr key={o.id} className={o.selected ? "" : "is-unselected"}>
                       <td>
                         <input
@@ -263,7 +268,31 @@ export default function Workspace_({
                       <td>{o.url ? <a className="link" href={o.url} target="_blank" rel="noreferrer">{o.titre}</a> : o.titre}</td>
                       <td>{o.entreprise}</td>
                       <td>{o.lieu}</td>
-                      <td>{o.contact ?? <span className="muted">via lien</span>}</td>
+                      <td>{o.contact}</td>
+                      <td style={{ whiteSpace: "pre-line" }}>{o.exigences}</td>
+                      <td className="muted">{o.source}</td>
+                    </tr>
+                  ))}
+                  {withoutEmail.length > 0 ? (
+                    <tr>
+                      <td colSpan={7} className="muted" style={{ paddingTop: 22, fontWeight: 600 }}>
+                        Autres offres — sans email, via lien de candidature uniquement
+                      </td>
+                    </tr>
+                  ) : null}
+                  {withoutEmail.map((o) => (
+                    <tr key={o.id}>
+                      <td>
+                        {o.url ? (
+                          <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                            Postuler ↗
+                          </button>
+                        ) : null}
+                      </td>
+                      <td>{o.url ? <a className="link" href={o.url} target="_blank" rel="noreferrer">{o.titre}</a> : o.titre}</td>
+                      <td>{o.entreprise}</td>
+                      <td>{o.lieu}</td>
+                      <td><span className="muted">via lien</span></td>
                       <td style={{ whiteSpace: "pre-line" }}>{o.exigences}</td>
                       <td className="muted">{o.source}</td>
                     </tr>
