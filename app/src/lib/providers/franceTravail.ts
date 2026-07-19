@@ -65,7 +65,10 @@ export async function searchFranceTravail(params: {
     titre: o.intitule ?? "Offre sans titre",
     entreprise: o.entreprise?.nom ?? "Entreprise non communiquée",
     lieu: o.lieuTravail?.libelle ?? "",
-    contact: o.contact?.courriel ?? extractEmailFromText(o.description, o.entreprise?.description),
+    // o.contact?.courriel contient parfois une phrase du type "Pour postuler, utiliser le
+    // lien suivant : https://..." au lieu d'un vrai email — on repasse tout par l'extracteur
+    // qui ne retient qu'un motif email valide, quelle que soit la source du texte.
+    contact: extractEmailFromText(o.contact?.courriel, o.description, o.entreprise?.description),
     exigences: [
       ...(o.competences ?? []).map((c: any) => c.libelle),
       o.experienceLibelle,
