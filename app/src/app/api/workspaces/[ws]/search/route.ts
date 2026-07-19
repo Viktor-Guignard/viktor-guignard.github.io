@@ -29,7 +29,7 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
       clientId: settings?.franceTravailClientId ?? "",
       clientSecret: settings?.franceTravailSecretEnc ? decryptSecret(settings.franceTravailSecretEnc) : "",
       motsCles: profile.poste,
-      localisation: profile.localisation,
+      codePostal: profile.localisation,
     }),
     searchAdzuna({
       appId: settings?.adzunaAppId ?? "",

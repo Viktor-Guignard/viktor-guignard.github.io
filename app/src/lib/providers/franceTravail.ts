@@ -4,26 +4,15 @@ const TOKEN_URL =
   "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
 const SEARCH_URL = "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search";
 
-// Résout un nom de ville en texte libre ("Paris", "Lyon"...) vers son code département,
-// seul format accepté de façon fiable par le paramètre "departement" de l'API France
-// Travail (le paramètre "commune" est rejeté même avec un code INSEE valide).
-// Service public gratuit, sans clé. En cas d'échec, on renvoie null et la recherche
-// se fait sans filtre de lieu (le champ reste affiché dans les résultats).
-async function resolveDepartementCode(cityName: string): Promise<string | null> {
-  try {
-    const qs = new URLSearchParams({
-      nom: cityName,
-      fields: "codeDepartement",
-      boost: "population",
-      limit: "1",
-    });
-    const res = await fetch(`https://geo.api.gouv.fr/communes?${qs.toString()}`);
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.[0]?.codeDepartement ?? null;
-  } catch {
-    return null;
-  }
+// Déduit le code département attendu par le paramètre "departement" de l'API France
+// Travail à partir d'un code postal à 5 chiffres — aucun appel réseau, aucune ambiguïté
+// (contrairement à la résolution par nom de ville). DOM (971-976) sur 3 chiffres,
+// Corse (20xxx) ramenée au département "20".
+function departementFromCodePostal(input: string): string | null {
+  const cp = input.trim();
+  if (!/^\d{5}$/.test(cp)) return null;
+  if (cp.startsWith("97") || cp.startsWith("98")) return cp.slice(0, 3);
+  return cp.slice(0, 2);
 }
 
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
@@ -49,17 +38,15 @@ export async function searchFranceTravail(params: {
   clientId: string;
   clientSecret: string;
   motsCles: string;
-  localisation?: string;
+  codePostal?: string;
 }): Promise<NormalizedOffer[]> {
   if (!params.clientId || !params.clientSecret || !params.motsCles) return [];
 
   const token = await getAccessToken(params.clientId, params.clientSecret);
   const qs = new URLSearchParams({ motsCles: params.motsCles, range: "0-14" });
 
-  // Ex: "Paris / télétravail" -> "Paris" -> département "75"
-  const cityGuess = params.localisation?.split(/[/,]/)[0]?.trim();
-  if (cityGuess) {
-    const departement = await resolveDepartementCode(cityGuess);
+  if (params.codePostal) {
+    const departement = departementFromCodePostal(params.codePostal);
     if (departement) qs.set("departement", departement);
   }
 

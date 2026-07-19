@@ -191,10 +191,15 @@ export default function Workspace_({
                   />
                 </div>
                 <div className="field">
-                  <label>Localisation</label>
+                  <label>Localisation (code postal)</label>
                   <input
                     value={profile.localisation}
-                    onChange={(e) => setProfile({ ...profile, localisation: e.target.value })}
+                    placeholder="75001"
+                    inputMode="numeric"
+                    maxLength={5}
+                    onChange={(e) =>
+                      setProfile({ ...profile, localisation: e.target.value.replace(/\D/g, "").slice(0, 5) })
+                    }
                   />
                 </div>
                 <div className="field">
