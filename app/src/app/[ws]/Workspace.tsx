@@ -19,6 +19,7 @@ type Settings = {
   adzunaAppKeySet: boolean;
   googleCseId: string;
   googleCseKeySet: boolean;
+  hunterApiKeySet: boolean;
   gmailAddress: string;
 };
 
@@ -58,6 +59,7 @@ export default function Workspace_({
     franceTravailSecret: "",
     adzunaAppKey: "",
     googleCseKey: "",
+    hunterApiKey: "",
   });
   const [offers, setOffers] = useState(initialOffers);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -101,7 +103,7 @@ export default function Workspace_({
       if (!res.ok) throw new Error("Échec de l'enregistrement des réglages.");
       const updated = await fetch(`/api/workspaces/${ws}/settings`).then((r) => r.json());
       setSettings(updated);
-      setSecretInputs({ franceTravailSecret: "", adzunaAppKey: "", googleCseKey: "" });
+      setSecretInputs({ franceTravailSecret: "", adzunaAppKey: "", googleCseKey: "", hunterApiKey: "" });
       setMessage({ type: "success", text: "Réglages enregistrés." });
     } catch (e: any) {
       setMessage({ type: "error", text: e.message });
@@ -465,6 +467,23 @@ export default function Workspace_({
                     onChange={(e) => setSecretInputs({ ...secretInputs, googleCseKey: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="field">
+                <label>
+                  Hunter.io — API Key{" "}
+                  {settings.hunterApiKeySet ? <span className="badge ok">clé configurée</span> : <span className="badge off">clé manquante</span>}
+                </label>
+                <input
+                  type="password"
+                  placeholder={settings.hunterApiKeySet ? "•••••••• (laisser vide pour garder)" : "clé Hunter.io (hunter.io/api-keys)"}
+                  value={secretInputs.hunterApiKey}
+                  onChange={(e) => setSecretInputs({ ...secretInputs, hunterApiKey: e.target.value })}
+                />
+                <p className="muted" style={{ marginTop: 6 }}>
+                  Trouve un email générique d'entreprise (contact@, rh@...) quand l'annonce n'en expose
+                  aucun. Quota gratuit très limité (25/mois, partagé Elomty+Didi) — utilisé au compte-goutte
+                  (5 offres max par recherche).
+                </p>
               </div>
               <button className="secondary" onClick={saveSettings} disabled={savingSettings}>
                 {savingSettings ? "Enregistrement…" : "Enregistrer les réglages"}

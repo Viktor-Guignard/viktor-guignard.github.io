@@ -27,6 +27,7 @@ model Settings {
   adzunaAppKeyEnc         String   @default("")
   googleCseId             String   @default("")
   googleCseKeyEnc         String   @default("")
+  hunterApiKeyEnc         String   @default("")
   gmailAddress            String   @default("")
   updatedAt               DateTime @updatedAt
 }

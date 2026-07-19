@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: { ws: string 
     adzunaAppKeySet: Boolean(s?.adzunaAppKeyEnc),
     googleCseId: s?.googleCseId ?? "",
     googleCseKeySet: Boolean(s?.googleCseKeyEnc),
+    hunterApiKeySet: Boolean(s?.hunterApiKeyEnc),
     gmailAddress: s?.gmailAddress ?? "",
   });
 }
@@ -39,6 +40,9 @@ export async function PUT(req: NextRequest, { params }: { params: { ws: string }
     googleCseKeyEnc: body.googleCseKey
       ? encryptSecret(String(body.googleCseKey))
       : existing?.googleCseKeyEnc ?? "",
+    hunterApiKeyEnc: body.hunterApiKey
+      ? encryptSecret(String(body.hunterApiKey))
+      : existing?.hunterApiKeyEnc ?? "",
     gmailAddress: String(body.gmailAddress ?? "").slice(0, 200),
   };
 

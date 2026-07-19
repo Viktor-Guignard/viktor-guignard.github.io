@@ -7,6 +7,7 @@ import { searchAdzuna } from "@/lib/providers/adzuna";
 import { searchGoogleCse } from "@/lib/providers/googleCse";
 import { searchArbeitnow } from "@/lib/providers/arbeitnow";
 import { excludeStagesAlternance } from "@/lib/providers/filterContract";
+import { enrichMissingContactsViaHunter } from "@/lib/providers/hunterEmailFinder";
 import type { NormalizedOffer } from "@/lib/providers/types";
 
 export async function POST(req: NextRequest, { params }: { params: { ws: string } }) {
@@ -62,11 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: { ws: string 
 
   if (cdiCddOnly) offers = excludeStagesAlternance(offers);
 
-  // NOTE: une tentative d'enrichissement via recherche web (DuckDuckGo, sans clé) a été
-  // testée puis retirée — le service bloque désormais les requêtes automatisées de façon
-  // quasi systématique (détection d'anomalie), ce qui ajoutait de la latence pour un
-  // résultat proche de zéro. Voir companyEmailFinder.ts, conservé au cas où un service
-  // fiable (avec clé API) serait branché plus tard.
+  // Hunter.io : quota gratuit très limité (25/mois, partagé Elomty+Didi), donc on ne
+  // tente l'enrichissement que si une clé est configurée, et sur 5 offres max par recherche.
+  if (settings?.hunterApiKeyEnc) {
+    offers = await enrichMissingContactsViaHunter(offers, decryptSecret(settings.hunterApiKeyEnc));
+  }
 
   for (const o of offers) {
     await prisma.offer.upsert({
