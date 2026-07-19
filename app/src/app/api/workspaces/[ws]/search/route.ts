@@ -49,7 +49,10 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
   const offers: NormalizedOffer[] = [];
   results.forEach((r, i) => {
     if (r.status === "fulfilled") offers.push(...r.value);
-    else errors.push(`${labels[i]} : ${r.reason?.message ?? "erreur inconnue"}`);
+    else {
+      const cause = r.reason?.cause?.message ?? r.reason?.cause?.code ?? "";
+      errors.push(`${labels[i]} : ${r.reason?.message ?? "erreur inconnue"}${cause ? ` (${cause})` : ""}`);
+    }
   });
 
   for (const o of offers) {
