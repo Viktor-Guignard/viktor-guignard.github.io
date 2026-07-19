@@ -32,6 +32,7 @@ export default async function WorkspacePage({ params }: { params: { ws: string }
         adzunaAppKeySet: Boolean(settings?.adzunaAppKeyEnc),
         googleCseId: settings?.googleCseId ?? "",
         googleCseKeySet: Boolean(settings?.googleCseKeyEnc),
+        hunterApiKeySet: Boolean(settings?.hunterApiKeyEnc),
         gmailAddress: settings?.gmailAddress ?? "",
       }}
       initialOffers={offers.map((o) => ({
