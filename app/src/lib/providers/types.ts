@@ -7,4 +7,6 @@ export type NormalizedOffer = {
   exigences: string;
   source: string;
   url: string | null;
+  // true = alternance, apprentissage ou stage — exclu quand "CDI/CDD uniquement" est actif
+  altStage: boolean;
 };

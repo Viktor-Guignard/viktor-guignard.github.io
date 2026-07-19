@@ -42,6 +42,7 @@ model Offer {
   exigences    String
   source       String
   url          String?
+  altStage     Boolean  @default(false)
   selected     Boolean  @default(true)
   createdAt    DateTime @default(now())
 

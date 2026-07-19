@@ -1,5 +1,6 @@
 import type { NormalizedOffer } from "./types";
 import { extractEmailFromText } from "./extractEmail";
+import { looksLikeAltStage } from "./filterContract";
 
 export async function searchAdzuna(params: {
   appId: string;
@@ -34,5 +35,6 @@ export async function searchAdzuna(params: {
     exigences: (o.description ?? "").slice(0, 400),
     source: "Adzuna",
     url: o.redirect_url ?? null,
+    altStage: looksLikeAltStage(o.title, o.contract_time, o.contract_type),
   }));
 }

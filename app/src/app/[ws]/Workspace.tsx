@@ -31,6 +31,7 @@ type Offer = {
   exigences: string;
   source: string;
   url: string | null;
+  altStage: boolean;
   selected: boolean;
 };
 
@@ -144,8 +145,10 @@ export default function Workspace_({
     });
   }
 
-  const withEmail = offers.filter((o) => o.contact);
-  const withoutEmail = offers.filter((o) => !o.contact);
+  // Le toggle CDI/CDD filtre l'affichage immédiatement, sans re-lancer de recherche.
+  const visibleOffers = cdiCddOnly ? offers.filter((o) => !o.altStage) : offers;
+  const withEmail = visibleOffers.filter((o) => o.contact);
+  const withoutEmail = visibleOffers.filter((o) => !o.contact);
   const selectedOffers = withEmail.filter((o) => o.selected);
 
   return (
@@ -308,7 +311,7 @@ export default function Workspace_({
                       <td className="muted">{o.source}</td>
                     </tr>
                   ))}
-                  {offers.length === 0 ? (
+                  {visibleOffers.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="muted">
                         Aucune offre pour l'instant — clique « Analyser ».

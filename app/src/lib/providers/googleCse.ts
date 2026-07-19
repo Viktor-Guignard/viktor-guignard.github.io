@@ -1,4 +1,5 @@
 import type { NormalizedOffer } from "./types";
+import { looksLikeAltStage } from "./filterContract";
 
 // Google CSE ne renvoie pas des offres structurées — utile en complément
 // pour dénicher des annonces publiées hors des deux APIs ci-dessus.
@@ -32,5 +33,6 @@ export async function searchGoogleCse(params: {
     exigences: it.snippet ?? "",
     source: "Google",
     url: it.link ?? null,
+    altStage: looksLikeAltStage(it.title, it.snippet),
   }));
 }

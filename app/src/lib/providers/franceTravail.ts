@@ -1,5 +1,6 @@
 import type { NormalizedOffer } from "./types";
 import { extractEmailFromText } from "./extractEmail";
+import { looksLikeAltStage } from "./filterContract";
 
 const TOKEN_URL =
   "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
@@ -61,13 +62,7 @@ export async function searchFranceTravail(params: {
     throw new Error(`France Travail search: ${res.status} ${await res.text()}`);
   }
   const json = await res.json();
-  let resultats: any[] = json.resultats ?? [];
-
-  // "alternance" est un booléen structuré et fiable de l'API — plus sûr que deviner via
-  // le titre, car beaucoup d'offres d'apprentissage ne contiennent pas ce mot-clé
-  // (ex: "Graphiste (H/F)" avec alternance=true). Les stages, eux, n'ont pas de champ
-  // équivalent fiable côté France Travail : ils restent filtrés par mots-clés en aval.
-  if (params.cdiCddOnly) resultats = resultats.filter((o) => o.alternance !== true);
+  const resultats: any[] = json.resultats ?? [];
 
   return resultats.map((o) => ({
     externalId: `ft-${o.id}`,
@@ -87,5 +82,11 @@ export async function searchFranceTravail(params: {
       .join("\n"),
     source: "France Travail",
     url: o.origineOffre?.urlOrigine ?? null,
+    // Combine le booléen structuré fiable de l'API (o.alternance), la nature du contrat
+    // (apprentissage) et un repli mots-clés sur le titre/type de contrat.
+    altStage:
+      o.alternance === true ||
+      /apprentissage/i.test(o.natureContrat ?? "") ||
+      looksLikeAltStage(o.intitule, o.typeContratLibelle),
   }));
 }

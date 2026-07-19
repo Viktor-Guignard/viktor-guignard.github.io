@@ -43,6 +43,7 @@ export default async function WorkspacePage({ params }: { params: { ws: string }
         exigences: o.exigences,
         source: o.source,
         url: o.url,
+        altStage: o.altStage,
         selected: o.selected,
       }))}
     />
