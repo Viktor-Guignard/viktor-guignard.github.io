@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// "elomty" ou "didi" — les deux espaces, isolés par cette clé
+model Profile {
+  id            String   @id @default(cuid())
+  workspace     String   @unique
+  poste         String   @default("")
+  localisation  String   @default("")
+  experience    String   @default("")
+  secteurs      String   @default("")
+  updatedAt     DateTime @updatedAt
+}
+
+model Settings {
+  id                      String   @id @default(cuid())
+  workspace               String   @unique
+  franceTravailClientId   String   @default("")
+  franceTravailSecretEnc  String   @default("")
+  adzunaAppId             String   @default("")
+  adzunaAppKeyEnc         String   @default("")
+  googleCseId             String   @default("")
+  googleCseKeyEnc         String   @default("")
+  gmailAddress            String   @default("")
+  updatedAt               DateTime @updatedAt
+}
+
+model Offer {
+  id           String   @id @default(cuid())
+  workspace    String
+  externalId   String
+  titre        String
+  entreprise   String
+  lieu         String
+  contact      String?
+  exigences    String
+  source       String
+  url          String?
+  selected     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([workspace, externalId])
+  @@index([workspace])
+}
