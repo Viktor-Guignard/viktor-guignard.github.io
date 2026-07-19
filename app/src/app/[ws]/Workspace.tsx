@@ -151,7 +151,7 @@ export default function Workspace_({
 
   // Il n'existe aucun moyen fiable de détecter automatiquement qu'une candidature a été
   // envoyée (pas d'intégration email/ATS) : on considère qu'un clic sur "Postuler" vaut
-  // candidature, et l'offre disparaît ensuite des listes pour ne pas la reproposer.
+  // candidature. L'offre reste visible (reléguée en bas) pour pouvoir la rouvrir au besoin.
   async function markApplied(o: Offer) {
     if (o.url) window.open(o.url, "_blank", "noreferrer");
     setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, applied: true } : x)));
@@ -163,9 +163,12 @@ export default function Workspace_({
   }
 
   // Le toggle CDI/CDD filtre l'affichage immédiatement, sans re-lancer de recherche.
-  const notApplied = offers.filter((o) => !o.applied);
-  const appliedCount = offers.length - notApplied.length;
-  const visibleOffers = cdiCddOnly ? notApplied.filter((o) => !o.altStage) : notApplied;
+  // Les offres déjà postulées restent visibles (le bouton devient "✓ Déjà postulé",
+  // toujours cliquable pour rouvrir le lien) mais sont reléguées en fin de liste.
+  const byAppliedLast = <T extends { applied: boolean }>(list: T[]) =>
+    [...list].sort((a, b) => Number(a.applied) - Number(b.applied));
+  const appliedCount = offers.filter((o) => o.applied).length;
+  const visibleOffers = byAppliedLast(cdiCddOnly ? offers.filter((o) => !o.altStage) : offers);
   const withEmail = visibleOffers.filter((o) => o.contact);
   const withoutEmail = visibleOffers.filter((o) => !o.contact);
   const selectedOffers = withEmail.filter((o) => o.selected);
@@ -271,9 +274,9 @@ export default function Workspace_({
                 {cdiCddOnly ? " Stages et alternances exclus des résultats." : " Stages et alternances inclus."}
                 Les offres avec un email de contact sont affichées en premier ; la plupart des jobboards
                 n'en fournissent volontairement pas (anti-spam), ces offres restent accessibles via leur
-                lien de candidature, plus bas. Cliquer « Postuler » retire l'offre de la liste (candidature
-                considérée comme faite).
-                {appliedCount > 0 ? ` ${appliedCount} offre(s) déjà postulée(s) masquée(s).` : ""}
+                lien de candidature, plus bas. Cliquer « Postuler » marque l'offre comme candidature faite
+                (elle reste visible, reléguée en bas, et reste cliquable pour la rouvrir).
+                {appliedCount > 0 ? ` ${appliedCount} offre(s) déjà postulée(s).` : ""}
               </p>
               <table>
                 <thead>
@@ -289,7 +292,7 @@ export default function Workspace_({
                 </thead>
                 <tbody>
                   {withEmail.map((o) => (
-                    <tr key={o.id} className={o.selected ? "" : "is-unselected"}>
+                    <tr key={o.id} className={o.applied || !o.selected ? "is-unselected" : ""}>
                       <td>
                         <input
                           type="checkbox"
@@ -323,11 +326,11 @@ export default function Workspace_({
                     </tr>
                   ) : null}
                   {withoutEmail.map((o) => (
-                    <tr key={o.id}>
+                    <tr key={o.id} className={o.applied ? "is-unselected" : ""}>
                       <td>
                         {o.url ? (
-                          <button type="button" onClick={() => markApplied(o)}>
-                            Postuler ↗
+                          <button type="button" className={o.applied ? "secondary" : ""} onClick={() => markApplied(o)}>
+                            {o.applied ? "✓ Déjà postulé" : "Postuler ↗"}
                           </button>
                         ) : null}
                       </td>
@@ -363,7 +366,7 @@ export default function Workspace_({
                   explicite avant tout envoi.
                 </p>
                 {selectedOffers.map((o) => (
-                  <div className="panel" style={{ marginBottom: 12 }} key={o.id}>
+                  <div className={`panel ${o.applied ? "is-unselected" : ""}`} style={{ marginBottom: 12 }} key={o.id}>
                     <div className="row" style={{ justifyContent: "space-between" }}>
                       <div>
                         <strong>{o.titre}</strong> — {o.entreprise}
@@ -375,8 +378,8 @@ export default function Workspace_({
                       <div className="row">
                         <span className="muted">{o.source}</span>
                         {o.url ? (
-                          <button type="button" onClick={() => markApplied(o)}>
-                            Postuler ↗
+                          <button type="button" className={o.applied ? "secondary" : ""} onClick={() => markApplied(o)}>
+                            {o.applied ? "✓ Déjà postulé" : "Postuler ↗"}
                           </button>
                         ) : null}
                       </div>
@@ -394,7 +397,7 @@ export default function Workspace_({
                 clic sur « Postuler » ouvre directement le lien officiel de l'offre.
               </p>
               {withoutEmail.map((o) => (
-                <div className="panel" style={{ marginBottom: 12 }} key={o.id}>
+                <div className={`panel ${o.applied ? "is-unselected" : ""}`} style={{ marginBottom: 12 }} key={o.id}>
                   <div className="row" style={{ justifyContent: "space-between" }}>
                     <div>
                       <strong>{o.titre}</strong> — {o.entreprise}
@@ -403,8 +406,8 @@ export default function Workspace_({
                     <div className="row">
                       <span className="muted">{o.source}</span>
                       {o.url ? (
-                        <button type="button" onClick={() => markApplied(o)}>
-                          Postuler ↗
+                        <button type="button" className={o.applied ? "secondary" : ""} onClick={() => markApplied(o)}>
+                          {o.applied ? "✓ Déjà postulé" : "Postuler ↗"}
                         </button>
                       ) : null}
                     </div>
