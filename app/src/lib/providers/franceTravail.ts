@@ -32,8 +32,9 @@ export async function searchFranceTravail(params: {
   if (!params.clientId || !params.clientSecret || !params.motsCles) return [];
 
   const token = await getAccessToken(params.clientId, params.clientSecret);
+  // "commune" attend un code INSEE à 5 chiffres, pas un nom de ville en texte libre —
+  // la localisation reste affichée dans les résultats mais ne filtre pas la requête.
   const qs = new URLSearchParams({ motsCles: params.motsCles, range: "0-14" });
-  if (params.localisation) qs.set("commune", params.localisation);
 
   const res = await fetch(`${SEARCH_URL}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
