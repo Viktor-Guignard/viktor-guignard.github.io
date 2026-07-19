@@ -2,7 +2,7 @@ import type { NormalizedOffer } from "./types";
 
 const TOKEN_URL =
   "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
-const SEARCH_URL = "https://api.pole-emploi.io/partenaire/offresdemploi/v2/offres/search";
+const SEARCH_URL = "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search";
 
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const body = new URLSearchParams({
