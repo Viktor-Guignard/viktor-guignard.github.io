@@ -325,24 +325,48 @@ export default function Workspace_({
 
         {tab === "candidatures" ? (
           <section className="tabpane active">
+            {selectedOffers.length > 0 ? (
+              <div className="panel">
+                <h2>Offres avec email — lettre &amp; envoi (bientôt)</h2>
+                <p className="muted">
+                  {selectedOffers.length} offre(s) avec un vrai email de contact. La génération de lettres
+                  et l'envoi arrivent dans une prochaine version — toujours avec validation humaine
+                  explicite avant tout envoi.
+                </p>
+                {selectedOffers.map((o) => (
+                  <div className="panel" style={{ marginBottom: 12 }} key={o.id}>
+                    <div className="row" style={{ justifyContent: "space-between" }}>
+                      <div>
+                        <strong>{o.titre}</strong> — {o.entreprise}
+                        <div className="muted">Email : {o.contact}</div>
+                      </div>
+                      <div className="row">
+                        <span className="muted">{o.source}</span>
+                        {o.url ? (
+                          <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                            Postuler ↗
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             <div className="panel">
-              <h2>Offres retenues</h2>
+              <h2>Offres via lien de candidature</h2>
               <p className="muted">
-                {selectedOffers.length} offre(s) cochée(s) dans l'onglet Recherche. La plupart des offres
-                n'exposent pas d'email de contact (les jobboards poussent volontairement vers un lien de
-                candidature plutôt qu'un email, pour éviter le spam) — le bouton "Postuler" ci-dessous
-                ouvre ce lien. La génération de lettres et l'envoi d'email arrivent dans une prochaine
-                version pour les offres qui, elles, exposent un email — toujours avec validation humaine
-                explicite avant tout envoi.
+                {withoutEmail.length} offre(s) — la quasi-totalité des jobboards (France Travail, Adzuna,
+                Arbeitnow...) n'exposent volontairement aucun email de contact, pour éviter le spam. Un
+                clic sur « Postuler » ouvre directement le lien officiel de l'offre.
               </p>
-              {selectedOffers.map((o) => (
+              {withoutEmail.map((o) => (
                 <div className="panel" style={{ marginBottom: 12 }} key={o.id}>
                   <div className="row" style={{ justifyContent: "space-between" }}>
                     <div>
                       <strong>{o.titre}</strong> — {o.entreprise}
-                      <div className="muted">
-                        {o.contact ? `Email : ${o.contact}` : "Pas d'email de contact — via lien uniquement"}
-                      </div>
+                      <div className="muted">{o.lieu}</div>
                     </div>
                     <div className="row">
                       <span className="muted">{o.source}</span>
@@ -355,7 +379,9 @@ export default function Workspace_({
                   </div>
                 </div>
               ))}
-              {selectedOffers.length === 0 ? <p className="muted">Aucune offre retenue.</p> : null}
+              {withoutEmail.length === 0 && selectedOffers.length === 0 ? (
+                <p className="muted">Aucune offre pour l'instant — lance une recherche dans l'onglet Recherche.</p>
+              ) : null}
             </div>
           </section>
         ) : null}
