@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elomty — démo</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="demo-banner">Aperçu visuel statique — aucune donnée réelle, aucune recherche ni envoi effectué.</div>
+<div class="site" data-theme="elomty">
+  <header class="site-header">
+    <div class="site-motif"></div>
+    <h1>Elomty</h1>
+    <div class="site-sub">recherche de CDI</div>
+    <div class="demo-badge">Démo</div>
+  </header>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="recherche">Recherche</button>
+    <button class="tab-btn" data-tab="candidatures">Candidatures</button>
+    <button class="tab-btn" data-tab="reglages">Réglages</button>
+    <a class="home-link" href="index.html">⌂ Accueil</a>
+  </nav>
+  <main>
+    <section id="recherche" class="tabpane active">
+      <div class="panel">
+        <h2>Mon profil</h2>
+        <div class="grid2">
+          <div class="field"><label>Poste recherché</label><input id="poste-input" /></div>
+          <div class="field"><label>Localisation</label><input value="Paris / télétravail" /></div>
+          <div class="field"><label>Expérience</label><input value="5 ans" /></div>
+          <div class="field"><label>Secteurs préférés</label><input value="Tech, e-commerce" /></div>
+        </div>
+        <button class="secondary" disabled>Enregistrer le profil</button>
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h2>Offres CDI</h2>
+          <div class="row">
+            <a id="linkedin-link" class="link" href="#" target="_blank">Ouvrir la recherche LinkedIn ↗</a>
+            <button id="analyser-btn">Analyser</button>
+          </div>
+        </div>
+        <p id="analyse-msg" class="muted"></p>
+        <table>
+          <thead><tr><th></th><th>Intitulé</th><th>Entreprise</th><th>Lieu</th><th>Contact</th><th>Exigences clés</th><th>Source</th></tr></thead>
+          <tbody id="offres-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="candidatures" class="tabpane">
+      <div class="panel">
+        <h2>Mon CV</h2>
+        <p class="muted">CV actif : CV_Prenom_Nom.pdf (démo)</p>
+        <input type="file" disabled />
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h2>Offres retenues</h2>
+          <div class="row">
+            <button class="secondary" disabled>Préparer tout</button>
+            <button disabled>Envoyer la sélection</button>
+          </div>
+        </div>
+        <div id="candidatures-list"></div>
+      </div>
+    </section>
+
+    <section id="reglages" class="tabpane">
+      <div class="panel">
+        <h2>Envoi des emails</h2>
+        <div class="field"><label>Adresse Gmail d'envoi</label><input placeholder="prenom.nom@gmail.com" /></div>
+        <button class="secondary" disabled>Se connecter avec Google</button>
+      </div>
+      <div class="panel">
+        <h2>Sources d'offres</h2>
+        <p class="muted">France Travail, Adzuna, Google Custom Search — à configurer dans la version connectée.</p>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="assets/demo.js"></script>
+<script>initWorkspace("elomty");</script>
+</body>
+</html>
