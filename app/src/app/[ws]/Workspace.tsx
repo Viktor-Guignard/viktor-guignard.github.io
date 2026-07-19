@@ -32,6 +32,7 @@ type Offer = {
   source: string;
   url: string | null;
   altStage: boolean;
+  contactGuessed?: boolean;
   selected: boolean;
 };
 
@@ -282,7 +283,17 @@ export default function Workspace_({
                       <td>{o.url ? <a className="link" href={o.url} target="_blank" rel="noreferrer">{o.titre}</a> : o.titre}</td>
                       <td>{o.entreprise}</td>
                       <td>{o.lieu}</td>
-                      <td>{o.contact}</td>
+                      <td>
+                        {o.contact}
+                        {o.contactGuessed ? (
+                          <>
+                            <br />
+                            <span className="muted" style={{ fontSize: 11 }}>
+                              contact générique entreprise, trouvé sur le web
+                            </span>
+                          </>
+                        ) : null}
+                      </td>
                       <td style={{ whiteSpace: "pre-line" }}>{o.exigences}</td>
                       <td className="muted">{o.source}</td>
                     </tr>
@@ -339,7 +350,10 @@ export default function Workspace_({
                     <div className="row" style={{ justifyContent: "space-between" }}>
                       <div>
                         <strong>{o.titre}</strong> — {o.entreprise}
-                        <div className="muted">Email : {o.contact}</div>
+                        <div className="muted">
+                          Email : {o.contact}
+                          {o.contactGuessed ? " (contact générique entreprise, trouvé sur le web)" : ""}
+                        </div>
                       </div>
                       <div className="row">
                         <span className="muted">{o.source}</span>

@@ -39,6 +39,7 @@ model Offer {
   entreprise   String
   lieu         String
   contact      String?
+  contactGuessed Boolean @default(false)
   exigences    String
   source       String
   url          String?

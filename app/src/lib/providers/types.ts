@@ -9,4 +9,7 @@ export type NormalizedOffer = {
   url: string | null;
   // true = alternance, apprentissage ou stage — exclu quand "CDI/CDD uniquement" est actif
   altStage: boolean;
+  // true = email trouvé via recherche web (contact générique de l'entreprise), pas
+  // extrait directement de l'annonce — affiché différemment pour rester honnête.
+  contactGuessed?: boolean;
 };

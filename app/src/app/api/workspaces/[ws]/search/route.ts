@@ -7,6 +7,7 @@ import { searchAdzuna } from "@/lib/providers/adzuna";
 import { searchGoogleCse } from "@/lib/providers/googleCse";
 import { searchArbeitnow } from "@/lib/providers/arbeitnow";
 import { excludeStagesAlternance } from "@/lib/providers/filterContract";
+import { enrichMissingContacts } from "@/lib/providers/companyEmailFinder";
 import type { NormalizedOffer } from "@/lib/providers/types";
 
 export async function POST(req: NextRequest, { params }: { params: { ws: string } }) {
@@ -61,6 +62,11 @@ export async function POST(req: NextRequest, { params }: { params: { ws: string 
   });
 
   if (cdiCddOnly) offers = excludeStagesAlternance(offers);
+
+  // Pour les offres sans email extrait des annonces, on tente de trouver le contact
+  // public de l'entreprise sur le web (best-effort, marqué "contactGuessed" pour
+  // que l'UI reste honnête sur la nature de cet email).
+  offers = await enrichMissingContacts(offers);
 
   for (const o of offers) {
     await prisma.offer.upsert({
