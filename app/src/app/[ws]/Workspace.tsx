@@ -44,7 +44,7 @@ export default function Workspace_({
   initialOffers,
 }: {
   ws: Workspace;
-  label: { name: string; tag: string };
+  label: { name: string };
   initialProfile: Profile;
   initialSettings: Settings;
   initialOffers: Offer[];
@@ -153,9 +153,7 @@ export default function Workspace_({
       <header className="site-header">
         <div className="site-motif" />
         <h1>{label.name}</h1>
-        <div className="site-sub">
-          {label.tag} · recherche de CDI
-        </div>
+        <div className="site-sub">Recherche de CDI</div>
         <div className="header-actions">
           <div className="demo-badge">En ligne</div>
           <form className="logout-form" action="/api/auth/logout" method="POST">

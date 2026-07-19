@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { isWorkspace, Workspace } from "@/lib/auth";
 import Workspace_ from "./Workspace";
 
-const LABELS: Record<Workspace, { name: string; tag: string }> = {
-  elomty: { name: "Elomty", tag: "Indonésie" },
-  didi: { name: "Didi", tag: "Berbère" },
+const LABELS: Record<Workspace, { name: string }> = {
+  elomty: { name: "Elomty" },
+  didi: { name: "Didi" },
 };
 
 export default async function WorkspacePage({ params }: { params: { ws: string } }) {

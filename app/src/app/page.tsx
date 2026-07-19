@@ -13,13 +13,11 @@ export default function HomePage() {
         <Link href="/elomty" className="landing-card" data-theme="elomty">
           <div className="card-motif" />
           <h2>Elomty</h2>
-          <div className="card-tag">Indonésie</div>
           <span className="cta">Ouvrir →</span>
         </Link>
         <Link href="/didi" className="landing-card" data-theme="didi">
           <div className="card-motif" />
           <h2>Didi</h2>
-          <div className="card-tag">Berbère</div>
           <span className="cta">Ouvrir →</span>
         </Link>
       </div>
