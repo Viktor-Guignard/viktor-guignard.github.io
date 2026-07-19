@@ -35,9 +35,10 @@ type Offer = {
   altStage: boolean;
   contactGuessed?: boolean;
   selected: boolean;
+  applied: boolean;
 };
 
-type Tab = "recherche" | "candidatures" | "reglages";
+type Tab = "recherche" | "candidatures";
 
 export default function Workspace_({
   ws,
@@ -148,8 +149,23 @@ export default function Workspace_({
     });
   }
 
+  // Il n'existe aucun moyen fiable de détecter automatiquement qu'une candidature a été
+  // envoyée (pas d'intégration email/ATS) : on considère qu'un clic sur "Postuler" vaut
+  // candidature, et l'offre disparaît ensuite des listes pour ne pas la reproposer.
+  async function markApplied(o: Offer) {
+    if (o.url) window.open(o.url, "_blank", "noreferrer");
+    setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, applied: true } : x)));
+    await fetch(`/api/workspaces/${ws}/offers/${o.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applied: true }),
+    });
+  }
+
   // Le toggle CDI/CDD filtre l'affichage immédiatement, sans re-lancer de recherche.
-  const visibleOffers = cdiCddOnly ? offers.filter((o) => !o.altStage) : offers;
+  const notApplied = offers.filter((o) => !o.applied);
+  const appliedCount = offers.length - notApplied.length;
+  const visibleOffers = cdiCddOnly ? notApplied.filter((o) => !o.altStage) : notApplied;
   const withEmail = visibleOffers.filter((o) => o.contact);
   const withoutEmail = visibleOffers.filter((o) => !o.contact);
   const selectedOffers = withEmail.filter((o) => o.selected);
@@ -177,9 +193,6 @@ export default function Workspace_({
           onClick={() => setTab("candidatures")}
         >
           Candidatures
-        </button>
-        <button className={`tab-btn ${tab === "reglages" ? "active" : ""}`} onClick={() => setTab("reglages")}>
-          Réglages
         </button>
         <Link className="home-link" href="/">
           ⌂ Accueil
@@ -253,12 +266,14 @@ export default function Workspace_({
                 </div>
               </div>
               <p className="muted">
-                Recherche réelle via France Travail, Adzuna, Google et Arbeitnow — configure tes clés dans
-                l'onglet Réglages. Aucune automatisation LinkedIn : le lien ci-dessus s'ouvre manuellement.
+                Recherche réelle via France Travail, Adzuna, Google et Arbeitnow. Aucune automatisation
+                LinkedIn : le lien ci-dessus s'ouvre manuellement.
                 {cdiCddOnly ? " Stages et alternances exclus des résultats." : " Stages et alternances inclus."}
                 Les offres avec un email de contact sont affichées en premier ; la plupart des jobboards
                 n'en fournissent volontairement pas (anti-spam), ces offres restent accessibles via leur
-                lien de candidature, plus bas.
+                lien de candidature, plus bas. Cliquer « Postuler » retire l'offre de la liste (candidature
+                considérée comme faite).
+                {appliedCount > 0 ? ` ${appliedCount} offre(s) déjà postulée(s) masquée(s).` : ""}
               </p>
               <table>
                 <thead>
@@ -311,7 +326,7 @@ export default function Workspace_({
                     <tr key={o.id}>
                       <td>
                         {o.url ? (
-                          <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                          <button type="button" onClick={() => markApplied(o)}>
                             Postuler ↗
                           </button>
                         ) : null}
@@ -360,7 +375,7 @@ export default function Workspace_({
                       <div className="row">
                         <span className="muted">{o.source}</span>
                         {o.url ? (
-                          <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                          <button type="button" onClick={() => markApplied(o)}>
                             Postuler ↗
                           </button>
                         ) : null}
@@ -388,7 +403,7 @@ export default function Workspace_({
                     <div className="row">
                       <span className="muted">{o.source}</span>
                       {o.url ? (
-                        <button type="button" onClick={() => window.open(o.url!, "_blank", "noreferrer")}>
+                        <button type="button" onClick={() => markApplied(o)}>
                           Postuler ↗
                         </button>
                       ) : null}
@@ -399,111 +414,6 @@ export default function Workspace_({
               {withoutEmail.length === 0 && selectedOffers.length === 0 ? (
                 <p className="muted">Aucune offre pour l'instant — lance une recherche dans l'onglet Recherche.</p>
               ) : null}
-            </div>
-          </section>
-        ) : null}
-
-        {tab === "reglages" ? (
-          <section className="tabpane active">
-            <div className="panel">
-              <h2>Sources d'offres</h2>
-              <div className="field">
-                <label>
-                  France Travail — Client ID{" "}
-                  {settings.franceTravailSecretSet ? <span className="badge ok">secret configuré</span> : <span className="badge off">secret manquant</span>}
-                </label>
-                <input
-                  value={settings.franceTravailClientId}
-                  onChange={(e) => setSettings({ ...settings, franceTravailClientId: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>France Travail — Client Secret</label>
-                <input
-                  type="password"
-                  placeholder={settings.franceTravailSecretSet ? "•••••••• (laisser vide pour garder)" : ""}
-                  value={secretInputs.franceTravailSecret}
-                  onChange={(e) => setSecretInputs({ ...secretInputs, franceTravailSecret: e.target.value })}
-                />
-              </div>
-              <div className="grid2">
-                <div className="field">
-                  <label>
-                    Adzuna — App ID{" "}
-                    {settings.adzunaAppKeySet ? <span className="badge ok">clé configurée</span> : <span className="badge off">clé manquante</span>}
-                  </label>
-                  <input
-                    value={settings.adzunaAppId}
-                    onChange={(e) => setSettings({ ...settings, adzunaAppId: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Adzuna — App Key</label>
-                  <input
-                    type="password"
-                    placeholder={settings.adzunaAppKeySet ? "•••••••• (laisser vide pour garder)" : ""}
-                    value={secretInputs.adzunaAppKey}
-                    onChange={(e) => setSecretInputs({ ...secretInputs, adzunaAppKey: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid2">
-                <div className="field">
-                  <label>
-                    Google CSE — ID moteur{" "}
-                    {settings.googleCseKeySet ? <span className="badge ok">clé configurée</span> : <span className="badge off">clé manquante</span>}
-                  </label>
-                  <input
-                    value={settings.googleCseId}
-                    onChange={(e) => setSettings({ ...settings, googleCseId: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Google CSE — API Key</label>
-                  <input
-                    type="password"
-                    placeholder={settings.googleCseKeySet ? "•••••••• (laisser vide pour garder)" : ""}
-                    value={secretInputs.googleCseKey}
-                    onChange={(e) => setSecretInputs({ ...secretInputs, googleCseKey: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label>
-                  Hunter.io — API Key{" "}
-                  {settings.hunterApiKeySet ? <span className="badge ok">clé configurée</span> : <span className="badge off">clé manquante</span>}
-                </label>
-                <input
-                  type="password"
-                  placeholder={settings.hunterApiKeySet ? "•••••••• (laisser vide pour garder)" : "clé Hunter.io (hunter.io/api-keys)"}
-                  value={secretInputs.hunterApiKey}
-                  onChange={(e) => setSecretInputs({ ...secretInputs, hunterApiKey: e.target.value })}
-                />
-                <p className="muted" style={{ marginTop: 6 }}>
-                  Trouve un email générique d'entreprise (contact@, rh@...) quand l'annonce n'en expose
-                  aucun. Quota gratuit très limité (25/mois, partagé Elomty+Didi) — utilisé au compte-goutte
-                  (5 offres max par recherche).
-                </p>
-              </div>
-              <button className="secondary" onClick={saveSettings} disabled={savingSettings}>
-                {savingSettings ? "Enregistrement…" : "Enregistrer les réglages"}
-              </button>
-            </div>
-
-            <div className="panel">
-              <h2>Envoi des emails</h2>
-              <div className="field">
-                <label>Adresse Gmail d'envoi</label>
-                <input
-                  placeholder="prenom.nom@gmail.com"
-                  value={settings.gmailAddress}
-                  onChange={(e) => setSettings({ ...settings, gmailAddress: e.target.value })}
-                />
-              </div>
-              <p className="muted">
-                La connexion OAuth Google et l'envoi d'email (toujours après relecture et validation
-                manuelle) arrivent dans une prochaine version.
-              </p>
             </div>
           </section>
         ) : null}

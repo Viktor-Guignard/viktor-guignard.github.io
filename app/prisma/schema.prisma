@@ -46,6 +46,11 @@ model Offer {
   url          String?
   altStage     Boolean  @default(false)
   selected     Boolean  @default(true)
+  // Marqué manuellement via le bouton "Postuler" — il n'existe aucun moyen fiable de
+  // détecter automatiquement une candidature (pas d'envoi d'email ni d'intégration ATS) ;
+  // on considère qu'un clic sur "Postuler" vaut candidature effective.
+  applied      Boolean  @default(false)
+  appliedAt    DateTime?
   createdAt    DateTime @default(now())
 
   @@unique([workspace, externalId])

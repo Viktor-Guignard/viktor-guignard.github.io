@@ -11,9 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { ws: string
     return NextResponse.json({ error: "offre introuvable" }, { status: 404 });
   }
 
-  const updated = await prisma.offer.update({
-    where: { id: params.id },
-    data: { selected: Boolean(body.selected) },
-  });
+  const data: { selected?: boolean; applied?: boolean; appliedAt?: Date | null } = {};
+  if ("selected" in body) data.selected = Boolean(body.selected);
+  if ("applied" in body) {
+    data.applied = Boolean(body.applied);
+    data.appliedAt = data.applied ? new Date() : null;
+  }
+
+  const updated = await prisma.offer.update({ where: { id: params.id }, data });
   return NextResponse.json(updated);
 }

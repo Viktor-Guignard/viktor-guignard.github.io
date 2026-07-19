@@ -47,6 +47,7 @@ export default async function WorkspacePage({ params }: { params: { ws: string }
         altStage: o.altStage,
         contactGuessed: o.contactGuessed,
         selected: o.selected,
+        applied: o.applied,
       }))}
     />
   );
