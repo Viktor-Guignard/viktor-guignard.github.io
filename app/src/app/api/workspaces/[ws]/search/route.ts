@@ -5,6 +5,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { searchFranceTravail } from "@/lib/providers/franceTravail";
 import { searchAdzuna } from "@/lib/providers/adzuna";
 import { searchGoogleCse } from "@/lib/providers/googleCse";
+import { searchArbeitnow } from "@/lib/providers/arbeitnow";
 import type { NormalizedOffer } from "@/lib/providers/types";
 
 export async function POST(_req: NextRequest, { params }: { params: { ws: string } }) {
@@ -41,9 +42,10 @@ export async function POST(_req: NextRequest, { params }: { params: { ws: string
       apiKey: settings?.googleCseKeyEnc ? decryptSecret(settings.googleCseKeyEnc) : "",
       query: profile.poste,
     }),
+    searchArbeitnow({ query: profile.poste }),
   ]);
 
-  const labels = ["France Travail", "Adzuna", "Google CSE"];
+  const labels = ["France Travail", "Adzuna", "Google CSE", "Arbeitnow"];
   const offers: NormalizedOffer[] = [];
   results.forEach((r, i) => {
     if (r.status === "fulfilled") offers.push(...r.value);
