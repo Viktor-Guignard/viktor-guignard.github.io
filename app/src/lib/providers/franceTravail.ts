@@ -52,9 +52,6 @@ export async function searchFranceTravail(params: {
     if (departement) qs.set("departement", departement);
   }
 
-  // Réduit le bruit côté API — mais n'exclut pas les alternances/stages, classées
-  // en CDD par France Travail : le filtrage par mots-clés se fait ensuite en aval,
-  // uniformément sur toutes les sources (voir excludeStagesAlternance).
   if (params.cdiCddOnly) qs.set("typeContrat", "CDI,CDD");
 
   const res = await fetch(`${SEARCH_URL}?${qs.toString()}`, {
@@ -64,7 +61,13 @@ export async function searchFranceTravail(params: {
     throw new Error(`France Travail search: ${res.status} ${await res.text()}`);
   }
   const json = await res.json();
-  const resultats: any[] = json.resultats ?? [];
+  let resultats: any[] = json.resultats ?? [];
+
+  // "alternance" est un booléen structuré et fiable de l'API — plus sûr que deviner via
+  // le titre, car beaucoup d'offres d'apprentissage ne contiennent pas ce mot-clé
+  // (ex: "Graphiste (H/F)" avec alternance=true). Les stages, eux, n'ont pas de champ
+  // équivalent fiable côté France Travail : ils restent filtrés par mots-clés en aval.
+  if (params.cdiCddOnly) resultats = resultats.filter((o) => o.alternance !== true);
 
   return resultats.map((o) => ({
     externalId: `ft-${o.id}`,
