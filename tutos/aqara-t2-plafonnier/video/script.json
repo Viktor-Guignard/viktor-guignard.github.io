@@ -1,0 +1,151 @@
+[
+  {"id": "titre", "lines": [
+    {"t": "Dans ce tutoriel, on installe le module double relais Aqara T2 directement au plafonnier, et non derrière l'interrupteur.",
+     "say": "Dans ce tutoriel, on installe le module double relais Aqara T 2 directement au plafonnier, et non derrière l'interrupteur."},
+    {"t": "Objectif : supprimer définitivement l'interrupteur mural et commander la lumière depuis Apple Maison."},
+    {"t": "Attention : ce sont des travaux sur le 230 V. Au moindre doute, faites appel à un électricien.",
+     "say": "Attention : ce sont des travaux sur le deux cent trente volts. Au moindre doute, faites appel à un électricien."}
+  ]},
+  {"id": "materiel", "lines": [
+    {"t": "Le matériel : le module Aqara T2, la caméra G2H Pro qui sert de hub Zigbee, un plafonnier classique en 230 V et l'app Maison d'Apple.",
+     "say": "Le matériel : le module Aqara T 2, la caméra G 2 H Pro qui sert de hub Zig Bee, un plafonnier classique en deux cent trente volts, et l'application Maison d'Apple."},
+    {"t": "Prévoyez aussi un vérificateur d'absence de tension, des bornes Wago, un tournevis isolé et un escabeau stable.",
+     "say": "Prévoyez aussi un vérificateur d'absence de tension, des bornes Wago, un tournevis isolé, et un escabeau stable."}
+  ]},
+  {"id": "compat", "lines": [
+    {"t": "Bonne nouvelle : la G2H Pro figure dans la liste officielle des hubs compatibles avec le T2, dans la FAQ Aqara.",
+     "say": "Bonne nouvelle : la caméra G 2 H Pro figure dans la liste officielle des hubs compatibles avec le T 2, dans la foire aux questions d'Aqara."},
+    {"t": "Ne confondez pas : la page produit européenne exclut la caméra G2H, l'ancien modèle, pas la version Pro.",
+     "say": "Ne confondez pas : la page produit européenne exclut la caméra G 2 H, l'ancien modèle, pas la version Pro."},
+    {"t": "Le T2 remontera dans Apple Maison via la passerelle HomeKit de la caméra : ni Matter ni autre hub nécessaire.",
+     "say": "Le T 2 remontera dans Apple Maison grâce à la passerelle Home Kit de la caméra : il ne faut ni Matter, ni un autre hub."},
+    {"t": "Deux conditions : mettre à jour le firmware de la caméra, et rester à une dizaine de mètres du hub maximum.",
+     "say": "Deux conditions : mettre à jour le firmware de la caméra, et rester à une dizaine de mètres du hub, au maximum."}
+  ]},
+  {"id": "pourquoi", "lines": [
+    {"t": "Pourquoi au plafond ? Le T2 doit être alimenté par une phase ET un neutre.",
+     "say": "Pourquoi au plafond ? Le T 2 doit être alimenté par une phase, et par un neutre."},
+    {"t": "Derrière votre interrupteur, les deux fils rouges sont la phase et le retour lampe : pas de neutre, donc pas de T2 possible.",
+     "say": "Derrière votre interrupteur, les deux fils rouges sont la phase et le retour lampe : il n'y a pas de neutre, donc le T 2 ne peut pas y être installé."},
+    {"t": "Au plafond, en revanche, le neutre arrive toujours jusqu'au point lumineux. C'est l'endroit idéal."}
+  ]},
+  {"id": "existant", "lines": [
+    {"t": "Voici l'installation actuelle. La phase part du tableau et descend jusqu'à l'interrupteur."},
+    {"t": "Interrupteur fermé, elle remonte par le fil de retour jusqu'à la lampe."},
+    {"t": "Le neutre et la terre, eux, vont directement au plafonnier, sans passer par l'interrupteur."}
+  ]},
+  {"id": "securite", "lines": [
+    {"t": "Avant de toucher un fil : coupez le disjoncteur du circuit éclairage, ou le disjoncteur général."},
+    {"t": "Empêchez toute remise sous tension, par exemple avec une étiquette sur le tableau."},
+    {"t": "Vérifiez l'absence de tension avec un vrai VAT, pas un tournevis testeur, entre tous les conducteurs.",
+     "say": "Vérifiez l'absence de tension avec un vrai vérificateur, et non un tournevis testeur, entre tous les conducteurs."},
+    {"t": "Photographiez le câblage avant de débrancher. Et Aqara demande une protection 10 A en amont du module.",
+     "say": "Photographiez le câblage avant de débrancher quoi que ce soit. Enfin, Aqara demande une protection de dix ampères en amont du module."}
+  ]},
+  {"id": "cas", "lines": [
+    {"t": "Ouvrez le plafonnier et identifiez ce que vous trouvez."},
+    {"t": "Cas A, le plus fréquent : un seul fil rouge, le retour, avec le neutre bleu et la terre. La phase permanente n'arrive pas au plafond."},
+    {"t": "Cas B : l'arrivée du tableau (phase, neutre, terre) plus un câble à deux fils qui descend vers l'interrupteur. La phase permanente est déjà là.",
+     "say": "Cas B : l'arrivée du tableau, phase, neutre et terre, plus un câble à deux fils qui descend vers l'interrupteur. Là, la phase permanente est déjà disponible."},
+    {"t": "Pas sûr ? Faites identifier les conducteurs par un électricien : on ne mesure pas sous tension sans habilitation.",
+     "say": "Pas sûr de vous ? Faites identifier les conducteurs par un électricien : on ne mesure pas sous tension sans habilitation."}
+  ]},
+  {"id": "pont", "lines": [
+    {"t": "Que faire des deux fils rouges ? Solution simple et universelle : les relier ensemble dans une borne Wago, dans la boîte de l'interrupteur."},
+    {"t": "C'est comme un interrupteur allumé en permanence : le retour devient une phase permanente, qui alimentera le T2 au plafond.",
+     "say": "C'est comme si l'interrupteur restait allumé en permanence : le fil de retour devient une phase permanente, qui alimentera le T 2 au plafond."},
+    {"t": "Refermez avec un obturateur ou une plaque pleine. La connexion doit rester accessible : jamais noyée dans le plâtre."},
+    {"t": "Notez dans la boîte qu'elle reste sous tension."}
+  ]},
+  {"id": "variante", "lines": [
+    {"t": "Variante, uniquement dans le cas B : la phase permanente est déjà au plafond."},
+    {"t": "Vous pouvez alors déconnecter les deux fils rouges au plafond, isoler chaque fil séparément aux deux extrémités, et étiqueter le câble « hors service ».",
+     "say": "Vous pouvez alors déconnecter les deux fils rouges au plafond, isoler chaque fil séparément aux deux extrémités, et étiqueter le câble : hors service."},
+    {"t": "Avantage : plus aucun conducteur sous tension dans la boîte murale. Dans le doute, gardez le pont : il marche dans les deux cas."}
+  ]},
+  {"id": "wetdry", "lines": [
+    {"t": "Contact sec ou contact humide ? Pour un plafonnier 230 V : mode contact humide, « Wet Contact ».",
+     "say": "Contact sec ou contact humide ? Pour un plafonnier en deux cent trente volts, c'est le mode contact humide : Wet Contact."},
+    {"t": "Le cavalier rouge fourni relie LIN et LOUT : le relais délivre alors la phase sur la sortie L1, vers la lampe.",
+     "say": "Le cavalier rouge fourni doit relier les bornes L IN et L OUT : le relais délivre alors la phase sur la sortie L 1, vers la lampe."},
+    {"t": "Le contact sec, sans cavalier, sert aux portails, portes de garage ou chaudières, qui ont leur propre circuit de commande."},
+    {"t": "Sélectionnez aussi « Wet Contact » dans l'app Aqara Home.",
+     "say": "Pensez aussi à sélectionner Wet Contact dans l'application Aqara Home."}
+  ]},
+  {"id": "schema", "lines": [
+    {"t": "Voici le schéma final au plafond. La phase permanente arrive sur la borne L.",
+     "say": "Voici le schéma final, au plafond. La phase permanente arrive sur la borne L."},
+    {"t": "Le neutre passe par une borne Wago qui le distribue à la borne N du T2 et au neutre du plafonnier.",
+     "say": "Le neutre passe par une borne Wago, qui le distribue à la borne N du T 2, et au neutre du plafonnier."},
+    {"t": "Le cavalier rouge relie LIN et LOUT. La sortie L1 alimente la phase du plafonnier.",
+     "say": "Le cavalier rouge relie L IN et L OUT. La sortie L 1 alimente la phase du plafonnier."},
+    {"t": "La terre va directement au plafonnier : le T2 n'a pas de borne de terre.",
+     "say": "La terre va directement au plafonnier : le T 2 n'a pas de borne de terre."},
+    {"t": "S1, S2 et COM restent libres puisqu'il n'y a plus d'interrupteur, et la sortie L2 reste inutilisée.",
+     "say": "Les bornes S 1, S 2 et COM restent libres, puisqu'il n'y a plus d'interrupteur, et la sortie L 2 reste inutilisée."}
+  ]},
+  {"id": "montage", "lines": [
+    {"t": "Dénudez 6 à 8 mm, serrez fermement chaque vis, puis tirez légèrement sur chaque fil pour vérifier.",
+     "say": "Côté montage : dénudez six à huit millimètres, serrez fermement chaque vis, puis tirez légèrement sur chaque fil pour vérifier."},
+    {"t": "Logez le T2 dans la boîte du plafond ou un boîtier fermé, hors de portée de la main. Dégagez son antenne, loin du métal.",
+     "say": "Logez le T 2 dans la boîte du plafond, ou dans un boîtier fermé, hors de portée de la main. Dégagez son antenne, loin du métal et des câbles."},
+    {"t": "Évitez la chaleur : pas contre une ampoule, pas sous l'isolant. 40 °C maximum.",
+     "say": "Évitez la chaleur : pas contre une ampoule, pas sous l'isolant, quarante degrés maximum."},
+    {"t": "Et surtout : faites l'appairage AVANT de refermer le plafond.",
+     "say": "Et surtout : faites l'appairage avant de refermer le plafond."}
+  ]},
+  {"id": "appairage", "lines": [
+    {"t": "Mettez à jour la G2H Pro, puis remettez le courant : le voyant du T2 s'allume.",
+     "say": "Appairage. Mettez à jour la caméra G 2 H Pro, puis remettez le courant : le voyant du T 2 s'allume."},
+    {"t": "Dans Aqara Home : « + », Ajouter un accessoire, Dual Relay Module T2, puis choisissez la G2H Pro comme hub.",
+     "say": "Dans Aqara Home, touchez plus, ajouter un accessoire, choisissez Dual Relay Module T 2, puis sélectionnez la G 2 H Pro comme hub."},
+    {"t": "Suivez les instructions de l'app (appui long sur le bouton du T2 si demandé) jusqu'au clignotement bleu rapide.",
+     "say": "Suivez les instructions de l'application, avec un appui long sur le bouton du T 2 si elle le demande, jusqu'au clignotement bleu rapide."},
+    {"t": "Réglez le mode Wet Contact, nommez la sortie « Plafonnier », testez. Puis recoupez le courant pour refermer.",
+     "say": "Une fois ajouté, réglez le mode Wet Contact, nommez la sortie, par exemple plafonnier, et testez. Puis coupez à nouveau le courant pour refermer proprement."}
+  ]},
+  {"id": "homekit", "lines": [
+    {"t": "Comme la G2H Pro est déjà dans Apple Maison, le T2 y apparaît automatiquement via sa passerelle HomeKit.",
+     "say": "Comme la G 2 H Pro est déjà dans Apple Maison, le T 2 y apparaît automatiquement, via sa passerelle Home Kit."},
+    {"t": "Il remonte souvent comme un double interrupteur : affichez L1 comme une lumière, et masquez ou ignorez L2.",
+     "say": "Il remonte souvent comme un double interrupteur : affichez la sortie L 1 comme une lumière, et masquez ou ignorez L 2."},
+    {"t": "Vous pouvez ensuite utiliser Siri, les scènes et les automatisations."}
+  ]},
+  {"id": "difficultes", "lines": [
+    {"t": "Les difficultés fréquentes en France. Les boîtes DCL sont souvent peu profondes ; le T2 mesure 45,5 × 48 × 24 mm.",
+     "say": "Les difficultés fréquentes en France. Les boîtes D C L sont souvent peu profondes, alors que le T 2 mesure quarante-cinq par quarante-huit par vingt-quatre millimètres."},
+    {"t": "Une dalle béton ou un boîtier métallique affaiblissent le signal Zigbee.",
+     "say": "Une dalle béton ou un boîtier métallique affaiblissent le signal Zig Bee."},
+    {"t": "Circuit protégé en 16 A ? Aqara demande 10 A : un disjoncteur 10 A est compatible avec du 1,5 mm².",
+     "say": "Beaucoup de circuits d'éclairage sont protégés en seize ampères, alors qu'Aqara demande dix ampères. Un disjoncteur de dix ampères convient au fil de un virgule cinq millimètre carré."},
+    {"t": "Logement ancien : les couleurs ne sont pas fiables, vérifiez tout au VAT. En LED, la notice limite à environ 200–250 W.",
+     "say": "Dans les logements anciens, les couleurs ne sont pas fiables : vérifiez tout au vérificateur. Pour des ampoules LED, la notice limite la charge à environ deux cents à deux cent cinquante watts."},
+    {"t": "Enfin, la NF C 15-100 prévoit un point d'éclairage commandé par pièce : supprimer toute commande peut poser question (vente, diagnostic, assurance).",
+     "say": "Enfin, la norme N F C quinze cent prévoit un point d'éclairage commandé dans chaque pièce : supprimer toute commande peut poser question, en cas de vente, de diagnostic, ou d'assurance."}
+  ]},
+  {"id": "planb", "lines": [
+    {"t": "Sans interrupteur physique, vous dépendez du hub et du Wi-Fi.",
+     "say": "Sans interrupteur physique, vous dépendez du hub et du wifi."},
+    {"t": "Collez un interrupteur sans fil Aqara à pile sur l'obturateur, à l'entrée de la pièce : il pilote le T2 via la G2H Pro, sans aucun fil.",
+     "say": "Collez un interrupteur sans fil Aqara, à pile, sur l'obturateur, à l'entrée de la pièce : il pilote le T 2 via la G 2 H Pro, sans aucun fil."},
+    {"t": "Et regardez dans Aqara Home comment le T2 se comporte après une coupure de courant, pour garder un dernier recours via le disjoncteur.",
+     "say": "Et regardez dans Aqara Home comment le T 2 se comporte après une coupure de courant, pour garder un dernier recours via le disjoncteur."}
+  ]},
+  {"id": "videos", "lines": [
+    {"t": "Côté vidéos : aucun tutoriel francophone consacré au T2 au plafonnier n'a été trouvé.",
+     "say": "Côté vidéos : je n'ai trouvé aucun tutoriel francophone consacré au T 2 au plafonnier."},
+    {"t": "La plus pertinente : Shane Whatley, en anglais. À partir de 5:41, il installe le T2 dans un ventilateur-luminaire de plafond.",
+     "say": "La plus pertinente est celle de Shane Whatley, en anglais : à partir de cinq minutes quarante et une, il installe le T 2 directement dans un ventilateur luminaire de plafond."},
+    {"t": "La vidéo officielle Aqara UK montre le câblage de base et le mode contact humide.",
+     "say": "La vidéo officielle d'Aqara U K montre le câblage de base et le mode contact humide."},
+    {"t": "Attention : installations américaine et britannique. Couleurs de fils et boîtiers diffèrent de la France.",
+     "say": "Attention : ce sont des installations américaine et britannique. Les couleurs de fils et les boîtiers diffèrent de la France."}
+  ]},
+  {"id": "recap", "lines": [
+    {"t": "Récapitulons : courant coupé et vérifié, les deux fils rouges pontés dans la boîte murale fermée par un obturateur.",
+     "say": "Récapitulons : courant coupé et vérifié, les deux fils rouges pontés dans la boîte murale, fermée par un obturateur."},
+    {"t": "Le T2 câblé au plafond en contact humide, appairé à la G2H Pro, et visible dans Apple Maison.",
+     "say": "Le T 2 câblé au plafond en contact humide, appairé à la G 2 H Pro, et visible dans Apple Maison."},
+    {"t": "Bonne installation ! Et au moindre doute, un électricien validera votre montage en quelques minutes."}
+  ]}
+]

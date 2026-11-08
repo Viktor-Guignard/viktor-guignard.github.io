@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Tuto T2 plafonnier — scènes</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#131c2e; --card2:#18233a; --line:#26324a;
+    --txt:#e9eef6; --mute:#9aa7bd; --acc:#38bdf8; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    --ph:#ef4444; --neu:#3b82f6; --out:#f97316; --pe1:#22c55e; --pe2:#eab308;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:"Inter","DejaVu Sans",sans-serif;-webkit-font-smoothing:antialiased}
+  #stage{position:absolute;inset:0;padding:70px 110px 0;
+    background:radial-gradient(1200px 700px at 85% -10%,rgba(56,189,248,.10),transparent 60%),
+               radial-gradient(900px 600px at -10% 110%,rgba(249,115,22,.08),transparent 60%)}
+  .kicker{font-size:26px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);font-weight:700}
+  h1{font-size:64px;line-height:1.08;font-weight:800;letter-spacing:-.01em;margin-top:10px}
+  h2{font-size:34px;font-weight:700}
+  p,li{font-size:32px;line-height:1.35}
+  .mute{color:var(--mute)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:44px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:44px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;margin-top:50px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px 34px}
+  .card h2{margin-bottom:12px}
+  .card p{font-size:28px}
+  .tag{display:inline-block;font-size:22px;font-weight:700;padding:6px 14px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--mute);margin-bottom:16px}
+  .hl{background:rgba(34,197,94,.18)!important;color:#86efac;border:1px solid rgba(34,197,94,.6)}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .acc{color:var(--acc)}
+  .b-ok{border-color:rgba(34,197,94,.55)} .b-warn{border-color:rgba(245,158,11,.6)} .b-bad{border-color:rgba(239,68,68,.6)}
+  ul.list{list-style:none;margin-top:40px;display:grid;gap:22px}
+  ul.list li{display:flex;gap:22px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 28px}
+  .num{flex:none;width:52px;height:52px;border-radius:50%;background:var(--acc);color:#04111d;font-weight:800;font-size:28px;display:grid;place-items:center}
+  .ico{flex:none;font-size:36px;width:52px;text-align:center}
+  .chip{display:inline-flex;align-items:center;gap:10px;font-size:26px;font-weight:600;padding:8px 16px;border-radius:12px;background:var(--card2);margin:6px 8px 6px 0}
+  .dot{width:22px;height:22px;border-radius:50%}
+  .wire-ph{background:var(--ph)} .wire-neu{background:var(--neu)} .wire-out{background:var(--out)}
+  .wire-pe{background:repeating-linear-gradient(90deg,var(--pe1) 0 6px,var(--pe2) 6px 12px)}
+  svg text{font-family:"Inter","DejaVu Sans",sans-serif}
+  /* caption */
+  #cap{position:absolute;left:0;right:0;bottom:0;padding:22px 140px 30px;min-height:150px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,rgba(11,18,32,0),rgba(6,10,20,.92) 35%);}
+  #cap span{font-size:34px;line-height:1.3;text-align:center;font-weight:500;color:#fff;max-width:1650px;text-wrap:balance}
+  #prog{position:absolute;left:0;top:0;height:6px;background:var(--acc)}
+  #chap{position:absolute;right:110px;top:60px;font-size:22px;color:var(--mute);font-weight:600}
+  /* animations (pilotées image par image) */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes pop{0%{opacity:0;transform:scale(.6)}70%{opacity:1;transform:scale(1.06)}100%{opacity:1;transform:scale(1)}}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes glow{from{opacity:0}to{opacity:1}}
+  @keyframes slideDown{from{opacity:0;transform:translateY(-80px)}to{opacity:1;transform:none}}
+  .fu{animation:fadeUp .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0s)}
+  .fi{animation:fadeIn .7s ease both;animation-delay:var(--d,0s)}
+  .pop{animation:pop .6s ease both;animation-delay:var(--d,0s);transform-box:fill-box;transform-origin:center}
+  .draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.1s ease-in-out forwards;animation-delay:var(--d,0s)}
+  .sd{animation:slideDown .8s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0s)}
+  .wire{fill:none;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+  .lbl{font-size:24px;font-weight:700}
+  .small{font-size:20px;fill:var(--mute);font-weight:600}
+  .term{fill:#e5e7eb;stroke:#6b7280;stroke-width:2}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="chap"></div>
+<div id="cap"><span></span></div>
+<div id="prog"></div>
+<script>
+window.STARTS = [0];
+const T = s => { if (typeof s === 'number') return s; const [k,o] = s.split(':'); return (STARTS[+k] ?? 0) + (+o || 0); };
+const D = (s, extra='') => `style="--d:${T(s)}s;${extra}"`;
+const ARROW = `<defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9aa7bd"/></marker></defs>`;
+const peWire = (d, delay) => `
+  <path class="wire draw" pathLength="1" d="${d}" stroke="var(--pe1)" ${D(delay)}/>
+  <path class="wire fi" d="${d}" stroke="var(--pe2)" stroke-dasharray="14 14" stroke-width="9" ${D(delay+1)}/>`;
+
+const SCENES = {
+titre: () => `
+  <div style="height:100%;display:flex;flex-direction:column;justify-content:center;padding-bottom:120px">
+    <div class="kicker fu" ${D(.1)}>Tutoriel domotique · 230 V</div>
+    <h1 class="fu" ${D(.3,'font-size:96px;margin-top:22px')}>Aqara T2<br>au plafonnier</h1>
+    <p class="fu mute" ${D(.6,'font-size:40px;margin-top:26px;max-width:1300px')}>Supprimer l'interrupteur mural et piloter l'éclairage avec Apple Maison, via la caméra G2H Pro comme hub Zigbee.</p>
+    <div class="fu" ${D(1.0,'margin-top:44px;display:flex;gap:16px;flex-wrap:wrap')}>
+      <span class="chip">Module double relais T2</span><span class="chip">Caméra G2H Pro</span><span class="chip">Plafonnier 230 V</span><span class="chip">Apple Maison</span>
+    </div>
+    <div class="fu card b-warn" ${D(1.4,'margin-top:46px;max-width:1250px;display:flex;gap:22px;align-items:center')}>
+      <span style="font-size:46px">⚠️</span><p style="font-size:28px">Travaux sur le réseau 230 V. Courant coupé, absence de tension vérifiée. Au moindre doute : électricien.</p>
+    </div>
+  </div>`,
+
+materiel: () => `
+  <div class="kicker fu">Matériel & objectif</div>
+  <h1 class="fu" ${D(.15)}>Ce qu'il vous faut</h1>
+  <div class="grid4">
+    ${[
+      ['🔌','Module double relais T2','Réf. DCM-K01 · Zigbee · 100–250 V~ · 10 A max'],
+      ['📷','Caméra G2H Pro','Sert de hub Zigbee 3.0 et de passerelle HomeKit'],
+      ['💡','Plafonnier 230 V','Luminaire classique, LED de préférence'],
+      ['🏠','Apple Maison','Commande, Siri, scènes, automatisations']
+    ].map((c,i)=>`<div class="card fu" ${D(.4+i*.25)}><div style="font-size:60px">${c[0]}</div><h2 style="margin-top:14px">${c[1]}</h2><p class="mute">${c[2]}</p></div>`).join('')}
+  </div>
+  <div class="card fu" ${D('1:0','margin-top:34px')}>
+    <h2>Outillage</h2>
+    <p class="mute" style="margin-top:6px">Vérificateur d'absence de tension (VAT) · bornes Wago 221 · tournevis isolé · pince à dénuder · obturateur / plaque pleine · escabeau stable</p>
+  </div>`,
+
+compat: () => `
+  <div class="kicker fu">Compatibilité</div>
+  <h1 class="fu" ${D(.15)}>La G2H Pro peut piloter le T2 <span class="ok">✔</span></h1>
+  <div class="grid2" style="grid-template-columns:1.15fr 1fr">
+    <div class="card b-ok fu" ${D(.5)}>
+      <span class="tag">FAQ officielle Aqara — Dual Relay Module T2</span>
+      <p>Hubs compatibles :</p>
+      <div style="margin-top:14px">${['G2H Pro Camera Hub','G3 Camera Hub','E1 Hub','M1S Hub','M1S Gen 2 Hub','M2 Hub'].map((h,i)=>`<span class="chip pop ${i==0?'hl':''}" ${D(.9+i*.15)}>${h}</span>`).join('')}</div>
+    </div>
+    <div style="display:grid;gap:24px">
+      <div class="card b-warn fu" ${D('1:0')}><h2 class="warn">⚠ Ne pas confondre</h2><p class="mute">La page produit Aqara EU exclut la « Camera Hub G2H » : l'ancien modèle, pas la Pro.</p></div>
+      <div class="card fu" ${D('2:0')}><h2>HomeKit</h2><p class="mute">Le T2 remonte dans Maison via la passerelle HomeKit de la G2H Pro. Matter non nécessaire.</p></div>
+    </div>
+  </div>
+  <div class="grid2 fu" ${D('3:0','margin-top:26px')}>
+    <div class="card"><p>🔄 <b>Firmware</b> de la G2H Pro à jour avant l'appairage</p></div>
+    <div class="card"><p>📶 <b>≈ 10 m</b> max du hub (7–10 m à travers un mur)</p></div>
+  </div>`,
+
+pourquoi: () => `
+  <div class="kicker fu">Le point clé</div>
+  <h1 class="fu" ${D(.15)}>Le T2 exige <span style="color:var(--ph)">phase</span> + <span style="color:var(--neu)">neutre</span></h1>
+  <div class="grid2">
+    <div class="card b-bad fu" ${D('1:0')}>
+      <span class="tag">Derrière l'interrupteur</span>
+      <div><span class="chip"><span class="dot wire-ph"></span>Rouge = phase</span><span class="chip"><span class="dot wire-ph"></span>Rouge = retour lampe</span></div>
+      <h2 class="bad" style="margin-top:22px">✘ Pas de neutre → T2 impossible</h2>
+    </div>
+    <div class="card b-ok fu" ${D('2:0')}>
+      <span class="tag">Au plafonnier</span>
+      <div><span class="chip"><span class="dot wire-neu"></span>Bleu = neutre</span><span class="chip"><span class="dot wire-pe"></span>Vert/jaune = terre</span><span class="chip"><span class="dot wire-ph"></span>Rouge = retour</span></div>
+      <h2 class="ok" style="margin-top:22px">✔ Le neutre arrive toujours au point lumineux</h2>
+    </div>
+  </div>`,
+
+existant: () => `
+  <div class="kicker fu">Comprendre l'existant</div>
+  <h1 class="fu" ${D(.15)}>Votre câblage actuel</h1>
+  <svg viewBox="0 0 1700 640" width="1700" height="640" style="margin-top:10px">
+    ${ARROW}
+    <line x1="560" y1="40" x2="1250" y2="40" stroke="#334155" stroke-width="4" stroke-dasharray="10 10"/>
+    <text x="570" y="28" class="small">plafond</text>
+    <line x1="1500" y1="140" x2="1500" y2="620" stroke="#334155" stroke-width="4" stroke-dasharray="10 10"/>
+    <text x="1512" y="610" class="small">mur</text>
+    <rect x="20" y="110" width="250" height="250" rx="18" fill="var(--card)" stroke="var(--line)" stroke-width="3" class="fi" ${D(.3)}/>
+    <text x="145" y="160" text-anchor="middle" class="lbl fi" fill="#fff" ${D(.3)}>Tableau</text>
+    <text x="145" y="192" text-anchor="middle" class="small fi" ${D(.3)}>disjoncteur éclairage</text>
+    <path class="wire draw" pathLength="1" d="M270 220 H1620 V420" stroke="var(--ph)" ${D(.8)}/>
+    <path class="wire draw" pathLength="1" d="M1560 420 V280 H980 V420" stroke="var(--ph)" ${D('1:0')}/>
+    <path class="wire draw" pathLength="1" d="M270 300 H900 V420" stroke="var(--neu)" ${D('2:0')}/>
+    ${peWire("M270 340 H840 V420", T('2:.4'))}
+    <text x="760" y="208" class="lbl fi" fill="var(--ph)" ${D(1.4)}>phase → interrupteur</text>
+    <text x="1080" y="268" class="lbl fi" fill="#fca5a5" ${D('1:.6')}>retour lampe (rouge aussi)</text>
+    <text x="420" y="288" class="lbl fi" fill="#93c5fd" ${D('2:.6')}>neutre</text>
+    <text x="420" y="378" class="lbl fi" fill="#bef264" ${D('2:1')}>terre</text>
+    <g class="fi" ${D(.5)}>
+      <rect x="800" y="420" width="220" height="70" rx="14" fill="var(--card2)" stroke="var(--line)" stroke-width="3"/>
+      <text x="910" y="465" text-anchor="middle" class="lbl" fill="#fff">Plafonnier</text>
+    </g>
+    <circle cx="910" cy="545" r="38" fill="#fde68a" class="fi" ${D('1:1.4','filter:drop-shadow(0 0 30px #fde047)')}/>
+    <circle cx="910" cy="545" r="38" fill="none" stroke="#64748b" stroke-width="3"/>
+    <g class="fi" ${D(.5)}>
+      <rect x="1525" y="420" width="130" height="150" rx="16" fill="var(--card2)" stroke="var(--line)" stroke-width="3"/>
+      <rect x="1560" y="455" width="60" height="80" rx="8" fill="#e5e7eb"/>
+    </g>
+    <g class="fu" ${D('1:2.2')}>
+      <rect x="1080" y="560" width="400" height="66" rx="14" fill="rgba(239,68,68,.12)" stroke="rgba(239,68,68,.6)" stroke-width="2"/>
+      <text x="1280" y="602" text-anchor="middle" class="lbl" fill="#fca5a5">2 fils rouges · pas de neutre</text>
+    </g>
+  </svg>`,
+
+securite: () => `
+  <div class="kicker fu">Sécurité d'abord</div>
+  <h1 class="fu" ${D(.15)}>Avant de toucher un seul fil</h1>
+  <ul class="list">
+    ${[
+      ['Couper le disjoncteur du circuit éclairage (ou le disjoncteur général).'],
+      ['Empêcher la remise sous tension : étiquette sur le tableau, prévenir la maison.'],
+      ['Vérifier l\'absence de tension au VAT, entre tous les conducteurs — pas au tournevis testeur.'],
+      ['Photographier le câblage existant avant de débrancher.'],
+      ['Protection 10 A en amont du T2 (exigence de la notice Aqara).']
+    ].map((l,i)=>`<li class="fu" ${D(['0:0','1:0','2:0','3:0','3:3'][i])}><span class="num">${i+1}</span><p>${l[0]}</p></li>`).join('')}
+  </ul>`,
+
+cas: () => `
+  <div class="kicker fu">Diagnostic au plafond</div>
+  <h1 class="fu" ${D(.15)}>Qu'y a-t-il dans la boîte du plafonnier ?</h1>
+  <div class="grid2">
+    <div class="card fu" ${D('1:0')}>
+      <span class="tag">Cas A — le plus fréquent</span>
+      <div><span class="chip"><span class="dot wire-ph"></span>1 rouge (retour)</span><span class="chip"><span class="dot wire-neu"></span>neutre</span><span class="chip"><span class="dot wire-pe"></span>terre</span></div>
+      <p class="mute" style="margin-top:18px">La phase permanente n'arrive pas au plafond.</p>
+      <h2 class="warn" style="margin-top:14px">→ Il faudra ponter à l'interrupteur</h2>
+    </div>
+    <div class="card fu" ${D('2:0')}>
+      <span class="tag">Cas B</span>
+      <div><span class="chip"><span class="dot wire-ph"></span>phase (tableau)</span><span class="chip"><span class="dot wire-neu"></span>neutre</span><span class="chip"><span class="dot wire-pe"></span>terre</span><span class="chip"><span class="dot wire-ph"></span><span class="dot wire-ph"></span>câble vers l'inter</span></div>
+      <p class="mute" style="margin-top:18px">La phase permanente est déjà disponible au plafond.</p>
+      <h2 class="ok" style="margin-top:14px">→ Pont ou mise hors service du câble</h2>
+    </div>
+  </div>
+  <div class="card b-warn fu" ${D('3:0','margin-top:30px')}><p>⚠ Identification incertaine ? Un électricien l'établit en quelques minutes. Pas de mesure sous tension sans habilitation.</p></div>`,
+
+pont: () => `
+  <div class="kicker fu">Les deux fils rouges</div>
+  <h1 class="fu" ${D(.15)}>Solution recommandée : le pont</h1>
+  <div style="display:grid;grid-template-columns:760px 1fr;gap:50px;margin-top:30px;align-items:start">
+    <svg viewBox="0 0 760 680" width="760" height="680">
+      <rect x="130" y="110" width="500" height="500" rx="60" fill="#1f2937" stroke="#475569" stroke-width="6"/>
+      <circle cx="380" cy="360" r="215" fill="#111827" stroke="#334155" stroke-width="4"/>
+      <text x="380" y="668" text-anchor="middle" class="small">boîte d'encastrement de l'ancien interrupteur</text>
+      <path class="wire draw" pathLength="1" d="M300 0 V200 Q300 300 340 330" stroke="var(--ph)" ${D(.6,'stroke-width:14px')}/>
+      <path class="wire draw" pathLength="1" d="M460 0 V200 Q460 300 420 330" stroke="var(--ph)" ${D(.9,'stroke-width:14px')}/>
+      <text x="230" y="150" class="lbl fi" fill="#fca5a5" text-anchor="end" ${D(1)}>phase</text>
+      <text x="530" y="150" class="lbl fi" fill="#fca5a5" ${D(1.2)}>retour</text>
+      <g class="pop" ${D(2.0)}>
+        <rect x="300" y="320" width="160" height="110" rx="14" fill="#e5e7eb" stroke="#9ca3af" stroke-width="3"/>
+        <rect x="318" y="300" width="50" height="60" rx="8" fill="#f97316"/>
+        <rect x="392" y="300" width="50" height="60" rx="8" fill="#f97316"/>
+        <text x="380" y="410" text-anchor="middle" class="lbl" fill="#111827">Wago</text>
+      </g>
+      <g class="sd" ${D('2:0')}>
+        <rect x="110" y="90" width="540" height="540" rx="64" fill="rgba(241,245,249,.55)" stroke="#cbd5e1" stroke-width="4"/>
+        <text x="380" y="220" text-anchor="middle" style="font-size:34px;font-weight:800" fill="#0f172a">Obturateur</text>
+        <text x="380" y="262" text-anchor="middle" style="font-size:24px;font-weight:600" fill="#475569">boîte fermée mais accessible</text>
+      </g>
+    </svg>
+    <ul class="list" style="margin-top:0">
+      <li class="fu" ${D(1.6)}><span class="ico">🔗</span><p>Relier les 2 rouges dans une <b>borne Wago</b>, dans la boîte murale.</p></li>
+      <li class="fu" ${D('1:0')}><span class="ico">⚡</span><p>Le retour devient une <b style="color:#fca5a5">phase permanente</b> qui alimente le T2 au plafond.</p></li>
+      <li class="fu" ${D('2:.4')}><span class="ico">🧱</span><p>Fermer par un <b>obturateur</b> : jamais de connexion noyée dans le plâtre.</p></li>
+      <li class="fu" ${D('3:0')}><span class="ico">🏷️</span><p>Étiqueter : « Pont T2 plafond — <b class="bad">sous tension</b> ».</p></li>
+    </ul>
+  </div>`,
+
+variante: () => `
+  <div class="kicker fu">Variante — cas B uniquement</div>
+  <h1 class="fu" ${D(.15)}>Mettre le câble de l'interrupteur hors service</h1>
+  <ul class="list">
+    <li class="fu" ${D('1:0')}><span class="ico">✂️</span><p>Au plafond : déconnecter les 2 fils rouges qui descendent vers l'interrupteur.</p></li>
+    <li class="fu" ${D('1:2.5')}><span class="ico">🔒</span><p>Isoler <b>chaque fil séparément</b> (une borne Wago par fil), aux <b>deux extrémités</b>.</p></li>
+    <li class="fu" ${D('1:5')}><span class="ico">🏷️</span><p>Étiqueter « hors service » côté plafond et côté boîte murale.</p></li>
+    <li class="fu b-ok" ${D('2:0','border-color:rgba(34,197,94,.55)')}><span class="ico">✅</span><p>Plus aucun conducteur sous tension dans la boîte murale.</p></li>
+    <li class="fu b-warn" ${D('2:3.5','border-color:rgba(245,158,11,.6)')}><span class="ico">🤔</span><p>Dans le doute : gardez le pont, il fonctionne dans les cas A et B.</p></li>
+  </ul>`,
+
+wetdry: () => {
+  const mini = (jumper, out) => `
+    <svg viewBox="0 0 640 330" width="640" height="330">
+      <rect x="60" y="110" width="520" height="180" rx="22" fill="#f1f5f9" stroke="#94a3b8" stroke-width="3"/>
+      ${['L1','L2','LOUT','LIN','L','N'].map((t,i)=>`<circle cx="${120+i*80}" cy="140" r="16" class="term"/><text x="${120+i*80}" y="200" text-anchor="middle" style="font-size:24px;font-weight:800" fill="#0f172a">${t}</text>`).join('')}
+      ${jumper?`<path class="wire draw" pathLength="1" d="M280 140 C280 60, 360 60, 360 140" stroke="var(--ph)" ${D('1:0','stroke-width:10px')}/>`
+              :`<text x="320" y="80" text-anchor="middle" class="lbl fi" fill="#94a3b8" ${D('1:0')}>pas de cavalier</text>`}
+      <text x="320" y="260" text-anchor="middle" style="font-size:22px;font-weight:600" fill="#475569">${out}</text>
+    </svg>`;
+  return `
+  <div class="kicker fu">Wet ou Dry ?</div>
+  <h1 class="fu" ${D(.15)}>Plafonnier 230 V = <span class="ok">Wet Contact</span></h1>
+  <div class="grid2" style="margin-top:30px">
+    <div class="card b-ok fu" ${D(.6)}>
+      <h2 class="ok">✔ Contact humide (Wet)</h2>
+      ${mini(true,'L1 / L2 délivrent la phase 230 V')}
+      <p class="mute">Cavalier rouge LIN ↔ LOUT · lampe entre L1 et N</p>
+    </div>
+    <div class="card fu" ${D('2:0')}>
+      <h2 class="mute">Contact sec (Dry)</h2>
+      ${mini(false,'Contact libre de potentiel')}
+      <p class="mute">Portail, porte de garage, chaudière… pas pour votre plafonnier</p>
+    </div>
+  </div>`;},
+
+schema: () => `
+  <div class="kicker fu">Schéma final</div>
+  <h1 class="fu" ${D(.15,'font-size:54px')}>Le T2 câblé au plafond</h1>
+  <svg viewBox="0 0 1700 700" width="1700" height="700" style="margin-top:0">
+    <text x="1690" y="640" text-anchor="end" class="small fi" ${D(.4)}>← arrivée au plafond</text>
+    <text x="1690" y="666" text-anchor="end" class="small fi" ${D(.4)}>(pont à l'inter : cas A · tableau : cas B)</text>
+    <!-- T2 -->
+    <g class="fi" ${D(.3)}>
+      <rect x="640" y="330" width="560" height="250" rx="26" fill="#f1f5f9" stroke="#94a3b8" stroke-width="4"/>
+      <text x="920" y="470" text-anchor="middle" style="font-size:40px;font-weight:800" fill="#0f172a">Aqara T2</text>
+      <text x="920" y="505" text-anchor="middle" style="font-size:22px;font-weight:600" fill="#475569">mode Wet Contact</text>
+      ${['L1','L2','LOUT','LIN','L','N'].map((t,i)=>`<circle cx="${700+i*88}" cy="360" r="17" class="term"/><text x="${700+i*88}" y="410" text-anchor="middle" style="font-size:24px;font-weight:800" fill="#0f172a">${t}</text>`).join('')}
+      ${['S1','S2','COM'].map((t,i)=>`<circle cx="${1010+i*70}" cy="555" r="13" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/><text x="${1010+i*70}" y="535" text-anchor="middle" style="font-size:18px;font-weight:700" fill="#64748b">${t}</text>`).join('')}
+    </g>
+    <!-- plafonnier -->
+    <g class="fi" ${D(.3)}>
+      <rect x="60" y="400" width="330" height="150" rx="20" fill="var(--card2)" stroke="var(--line)" stroke-width="3"/>
+      <text x="225" y="525" text-anchor="middle" class="lbl" fill="#fff">Plafonnier</text>
+      <circle cx="130" cy="430" r="13" class="term"/><circle cx="225" cy="430" r="13" class="term"/><circle cx="320" cy="430" r="13" class="term"/>
+      <text x="130" y="475" text-anchor="middle" class="small">⏚</text><text x="225" y="475" text-anchor="middle" class="small">N</text><text x="320" y="475" text-anchor="middle" class="small">L</text>
+    </g>
+    <circle cx="225" cy="620" r="44" fill="#fde68a" class="fi" ${D('2:4.5','filter:drop-shadow(0 0 34px #fde047)')}/>
+    <!-- phase permanente -> L -->
+    <path class="wire draw" pathLength="1" d="M1690 250 H1158 A18 18 0 0 0 1122 250 H1052 V343" stroke="var(--ph)" ${D('0:2')}/>
+    <text x="1460" y="236" class="lbl fi" fill="#fca5a5" ${D('0:2.6')}>phase permanente</text>
+    <!-- neutre -->
+    <path class="wire draw" pathLength="1" d="M1690 180 H225 V417" stroke="var(--neu)" ${D('1:0')}/>
+    <path class="wire draw" pathLength="1" d="M1140 180 V343" stroke="var(--neu)" ${D('1:1.2')}/>
+    <g class="pop" ${D('1:1')}><rect x="1108" y="158" width="64" height="44" rx="8" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2"/><rect x="1116" y="150" width="14" height="22" rx="3" fill="#f97316"/><rect x="1134" y="150" width="14" height="22" rx="3" fill="#f97316"/><rect x="1152" y="150" width="14" height="22" rx="3" fill="#f97316"/></g>
+    <text x="1460" y="166" class="lbl fi" fill="#93c5fd" ${D('1:.6')}>neutre</text>
+    <text x="1180" y="226" class="small fi" ${D('1:1.6')}>Wago</text>
+    <!-- cavalier -->
+    <path class="wire draw" pathLength="1" d="M876 343 C876 280, 964 280, 964 343" stroke="var(--ph)" ${D('2:0','stroke-width:8px')}/>
+    <text x="920" y="268" text-anchor="middle" class="lbl fi" fill="#fca5a5" ${D('2:.6')}>cavalier</text>
+    <!-- L1 -> plafonnier -->
+    <path class="wire draw" pathLength="1" d="M700 343 V300 H320 V417" stroke="var(--out)" ${D('2:3')}/>
+    <text x="420" y="288" class="lbl fi" fill="#fdba74" ${D('2:3.6')}>sortie L1 → phase du plafonnier</text>
+    <!-- terre -->
+    ${peWire("M1690 110 H130 V417", T('3:0'))}
+    <text x="1690" y="96" text-anchor="end" class="lbl fi" fill="#bef264" ${D('3:.6')}>terre (direct au luminaire)</text>
+    <!-- libres -->
+    <text x="788" y="630" text-anchor="middle" class="small fi" ${D('4:0')}>L2 : libre</text>
+    <text x="1080" y="630" text-anchor="middle" class="small fi" ${D('4:0')}>S1 · S2 · COM : non raccordés</text>
+  </svg>`,
+
+montage: () => `
+  <div class="kicker fu">Montage</div>
+  <h1 class="fu" ${D(.15)}>Les bons gestes</h1>
+  <div class="grid3">
+    ${[
+      ['✂️','Dénuder 6–8 mm','Serrer chaque vis, puis tirer légèrement sur chaque fil.'],
+      ['📦','Boîtier fermé','Boîte du plafond ou boîtier de dérivation, hors de portée de main.'],
+      ['📡','Antenne dégagée','Loin du métal, des câbles et du module lui-même.'],
+      ['🌡️','40 °C maximum','Pas contre une ampoule, pas sous l\'isolant, ventilation normale.'],
+      ['🔁','Appairer avant de fermer','Le bouton du T2 sera inaccessible ensuite.'],
+      ['🧪','Tester','Marche / arrêt depuis l\'app avant de refermer.']
+    ].map((c,i)=>`<div class="card fu" ${D(['0:.3','1:0','1:3.5','2:0','3:0','3:1.5'][i])}><div style="font-size:52px">${c[0]}</div><h2 style="margin-top:10px">${c[1]}</h2><p class="mute">${c[2]}</p></div>`).join('')}
+  </div>`,
+
+appairage: () => `
+  <div class="kicker fu">Appairage</div>
+  <h1 class="fu" ${D(.15)}>Aqara Home → G2H Pro → T2</h1>
+  <ul class="list">
+    ${[
+      'Mettre à jour le firmware de la G2H Pro, puis remettre le courant.',
+      'Aqara Home : « + » → Ajouter un accessoire → <b>Dual Relay Module T2</b>.',
+      'Choisir la <b>G2H Pro</b> comme hub, suivre l\'app (appui long sur le bouton du T2 si demandé).',
+      'Voyant bleu à clignotement rapide → connexion. Bleu fixe = connecté.',
+      'Réglages : mode <b>Wet Contact</b>, nommer « Plafonnier », tester, couper, refermer.'
+    ].map((l,i)=>`<li class="fu" ${D(['0:0','1:0','1:4','2:0','3:0'][i])}><span class="num">${i+1}</span><p>${l}</p></li>`).join('')}
+  </ul>`,
+
+homekit: () => `
+  <div class="kicker fu">Apple Maison</div>
+  <h1 class="fu" ${D(.15)}>Le T2 apparaît tout seul</h1>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:44px;align-items:center">
+    <div style="display:flex;gap:30px;align-items:center;justify-content:center">
+      <div class="card pop" ${D(.6,'text-align:center;width:250px')}><div style="font-size:64px">📷</div><h2>G2H Pro</h2><p class="mute" style="font-size:22px">passerelle HomeKit</p></div>
+      <div class="fi" ${D(1.2,'font-size:60px;color:var(--acc)')}>→</div>
+      <div class="pop" ${D(2.0,'width:290px;height:290px;border-radius:44px;background:#fef3c7;color:#111827;padding:34px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 70px rgba(253,224,71,.35)')}>
+        <div style="font-size:70px">💡</div><div><div style="font-size:34px;font-weight:800">Plafonnier</div><div style="font-size:26px;color:#6b7280;font-weight:600">Salon · Allumé</div></div>
+      </div>
+    </div>
+    <ul class="list" style="margin-top:0">
+      <li class="fu" ${D('1:0')}><span class="ico">💡</span><p>Afficher <b>L1</b> comme <b>lumière</b></p></li>
+      <li class="fu" ${D('1:3')}><span class="ico">🙈</span><p>Masquer / ignorer <b>L2</b></p></li>
+      <li class="fu" ${D('2:0')}><span class="ico">🗣️</span><p>Siri : « Allume le plafonnier »</p></li>
+      <li class="fu" ${D('2:1')}><span class="ico">⏰</span><p>Scènes & automatisations</p></li>
+    </ul>
+  </div>`,
+
+difficultes: () => `
+  <div class="kicker fu">Installation française</div>
+  <h1 class="fu" ${D(.15)}>Les pièges à anticiper</h1>
+  <div class="grid3" style="margin-top:34px;gap:24px">
+    ${[
+      ['📏','Boîte DCL peu profonde','T2 : 45,5 × 48 × 24 mm + fils + Wago. Prévoir une boîte profonde ou un boîtier à côté.'],
+      ['🧱','Dalle béton / métal','Signal Zigbee affaibli : hub proche, antenne dégagée.'],
+      ['⚡','Disjoncteur 16 A','Aqara demande 10 A en amont ; 10 A convient au 1,5 mm².'],
+      ['🎨','Couleurs non fiables','Logement ancien : tout identifier au VAT, jamais à la couleur.'],
+      ['💡','Charge LED','≈ 200–250 W max en LED selon la notice (10 A en résistif).'],
+      ['📘','NF C 15-100','Un point d\'éclairage commandé par pièce : à garder en tête.']
+    ].map((c,i)=>`<div class="card fu" ${D(['0:2','1:0','2:0','3:0','3:4','4:0'][i],'padding:26px 30px')}><div style="font-size:46px">${c[0]}</div><h2 style="margin-top:8px;font-size:30px">${c[1]}</h2><p class="mute" style="font-size:25px">${c[2]}</p></div>`).join('')}
+  </div>`,
+
+planb: () => `
+  <div class="kicker fu">Ne jamais rester dans le noir</div>
+  <h1 class="fu" ${D(.15)}>Gardez une commande de secours</h1>
+  <div class="grid2" style="grid-template-columns:1.1fr 1fr">
+    <div class="card fu b-ok" ${D('1:0')}>
+      <div style="font-size:60px">🔘</div>
+      <h2 style="margin-top:10px">Interrupteur sans fil Aqara (à pile)</h2>
+      <p class="mute">Collé sur l'obturateur, à l'entrée de la pièce. Il pilote le T2 via la G2H Pro — aucun fil, aucun travaux.</p>
+    </div>
+    <div style="display:grid;gap:24px">
+      <div class="card fu b-warn" ${D(.6)}><h2 class="warn">Hub ou Wi-Fi en panne</h2><p class="mute">Plus de commande depuis Maison tant que la G2H Pro est hors ligne.</p></div>
+      <div class="card fu" ${D('2:0')}><h2>Après une coupure</h2><p class="mute">Vérifier dans Aqara Home l'état du T2 au retour du courant (dernier recours : le disjoncteur).</p></div>
+    </div>
+  </div>`,
+
+videos: () => `
+  <div class="kicker fu">Pour aller plus loin</div>
+  <h1 class="fu" ${D(.15)}>Vidéos réellement utiles</h1>
+  <div class="card b-warn fu" ${D(.6,'margin-top:30px')}><p>Aucun tutoriel francophone consacré au T2 <b>au plafonnier</b> trouvé.</p></div>
+  <div class="grid2" style="margin-top:26px">
+    <div class="card b-ok fu" ${D('1:0')}>
+      <span class="tag">⭐ La plus pertinente · anglais</span>
+      <h2>Shane Whatley — « Make Your Ceiling Fan (or Anything Else) SMART with THIS! »</h2>
+      <p class="mute" style="margin-top:12px">Chapitre <b class="acc">5:41 « Install the T2 in Ceiling Fan »</b> : T2 logé au plafond, dans le luminaire.</p>
+      <p class="acc" style="margin-top:12px;font-size:26px">youtu.be/dBAUbd0N0cI?t=341</p>
+    </div>
+    <div class="card fu" ${D('2:0')}>
+      <span class="tag">Officielle · Aqara UK</span>
+      <h2>« How to install Aqara Dual Relay Module T2 »</h2>
+      <p class="mute" style="margin-top:12px">Câblage de base, bornes, cavalier du mode Wet. Montage générique, pas spécifique au plafond.</p>
+      <p class="acc" style="margin-top:12px;font-size:26px">youtu.be/S4ylasTLtWI</p>
+    </div>
+  </div>`,
+
+recap: () => `
+  <div class="kicker fu">Récapitulatif</div>
+  <h1 class="fu" ${D(.15)}>Checklist finale</h1>
+  <ul class="list" style="gap:16px;margin-top:30px">
+    ${[
+      'Courant coupé, consigné, absence de tension vérifiée au VAT',
+      '2 fils rouges pontés (Wago) dans la boîte murale fermée par un obturateur',
+      'Au plafond : L ← phase permanente · N ← neutre (Wago) · cavalier LIN–LOUT',
+      'L1 → phase du plafonnier · terre directe au luminaire · S1/S2/COM libres',
+      'Mode Wet Contact · appairé à la G2H Pro avant fermeture',
+      'Visible dans Apple Maison · interrupteur sans fil de secours'
+    ].map((l,i)=>`<li class="fu" ${D(['0:0','0:3','1:0','1:1.5','1:3','2:0'][i],'padding:16px 26px')}><span class="ico ok">✔</span><p style="font-size:30px">${l}</p></li>`).join('')}
+  </ul>`
+};
+
+const ORDER = Object.keys(SCENES);
+window.loadScene = (id, starts) => {
+  window.STARTS = starts || [0];
+  document.getElementById('stage').innerHTML = SCENES[id]();
+  const i = ORDER.indexOf(id);
+  document.getElementById('chap').textContent = `${i+1} / ${ORDER.length}`;
+  document.getElementById('prog').style.width = `${(i+1)/ORDER.length*100}%`;
+  document.getElementById('stage').classList.remove('fi');
+  void document.body.offsetWidth;
+  const anims = document.getAnimations();
+  anims.forEach(a => a.pause());
+  let end = 0;
+  anims.forEach(a => { const t = a.effect.getComputedTiming(); end = Math.max(end, t.endTime); });
+  return end / 1000;
+};
+window.setFrame = (t, caption) => {
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  document.querySelector('#cap span').textContent = caption || '';
+};
+const qs = new URLSearchParams(location.search);
+if (qs.get('scene')) { loadScene(qs.get('scene')); setFrame(+(qs.get('t') || 99), qs.get('cap') || ''); }
+</script>
+</body>
+</html>
