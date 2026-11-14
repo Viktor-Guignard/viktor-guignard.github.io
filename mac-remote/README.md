@@ -42,14 +42,30 @@ Le script signale au démarrage celles qui manquent. Relance-le après les avoir
 Hors de chez toi : installe [Tailscale](https://tailscale.com) sur le Mac et l'iPhone,
 puis utilise l'adresse en `100.x.y.z` affichée par le script.
 
-| Geste | Effet |
+| Geste sur le trackpad | Effet |
 |---|---|
-| Glisser à un doigt sur le trackpad | Déplacer le curseur |
+| Glisser à un doigt | Déplacer le curseur |
 | Tape à un doigt | Clic (deux tapes rapides : double-clic) |
 | Tape à deux doigts | Clic droit |
 | Glisser à deux doigts | Défilement |
 | Tape, puis glisser aussitôt | Glisser-déposer |
-| Toucher l'image du Mac | Clic à cet endroit |
+
+Les mêmes gestes marchent directement sur l'image du Mac, là où se pose le doigt :
+
+| Geste sur l'image | Effet |
+|---|---|
+| Glisser à un doigt | Le curseur suit le doigt |
+| Tape à un doigt | Clic à cet endroit (deux tapes rapides : double-clic) |
+| Tape sur le curseur | Clic exactement là où il est, sans le déplacer |
+| Tape à deux doigts | Clic droit |
+| Glisser à deux doigts | Défilement de ce qui est sous les doigts |
+| Tape, puis glisser aussitôt | Glisser-déposer |
+
+iPhone tenu à l'horizontale : l'écran du Mac s'affiche seul, en grand ; le clavier et le
+trackpad reviennent à la verticale.
+
+| Clavier | Effet |
+|---|---|
 | ⌘, ctrl, opt, ⇧ | S'appliquent à la touche suivante (⌘ puis c = copier) |
 
 ## Options

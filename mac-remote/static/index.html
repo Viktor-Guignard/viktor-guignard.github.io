@@ -92,6 +92,11 @@
     .key.mod small { display: none; }
   }
 
+  /* Téléphone à l'horizontale : l'écran du Mac seul, en grand. */
+  @media (orientation: landscape) and (max-height: 540px) {
+    #bar, #deck { display: none; }
+  }
+
   #pad {
     position: relative; flex: 1 1 0; min-height: 60px; align-self: center;
     width: min(100%, 520px); border-radius: 12px;
@@ -200,44 +205,99 @@ function placeCursor(x, y) {
     `translate(${r.x + lastCursor.x * r.w - 2}px, ${r.y + lastCursor.y * r.h - 1}px)`;
 }
 addEventListener('resize', () => placeCursor());
-
-/* Toucher directement l'image : le curseur va sous le doigt, appui = clic. */
-let direct = null;
-function toScreen(e) {
-  const r = videoRect(); if (!r) return null;
-  const b = screenEl.getBoundingClientRect();
-  return { x: (e.clientX - b.left - r.x) / r.w, y: (e.clientY - b.top - r.y) / r.h };
-}
-screenEl.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  const p = toScreen(e);
-  if (direct !== null || !p || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return;
-  direct = e.pointerId; try { screenEl.setPointerCapture(e.pointerId); } catch (err) {}
-  send({ t: 'moveto', x: p.x, y: p.y }); send({ t: 'down', b: 'left' });
-});
-screenEl.addEventListener('pointermove', e => {
-  if (e.pointerId !== direct) return;
-  const p = toScreen(e); if (p) send({ t: 'moveto', x: p.x, y: p.y });
-});
-function endDirect(e) { if (e.pointerId === direct) { direct = null; send({ t: 'up', b: 'left' }); } }
-screenEl.addEventListener('pointerup', endDirect);
-screenEl.addEventListener('pointercancel', endDirect);
-
+/* ---------------------------------------------------- gestes tactiles */
 /* ---------------------------------------------------------- trackpad */
 const pad = $('pad');
 const TAP_MS = 250, TAP_PX = 8, DRAG_MS = 220, SPEED = 1.5;
-const fingers = new Map();
-let g = null;                    // geste en cours
-let lastTap = 0;                 // fin du dernier tap à un doigt
-let acc = { dx: 0, dy: 0, sx: 0, sy: 0 }, flushPending = false;
+let acc = { dx: 0, dy: 0, sx: 0, sy: 0, pos: null }, flushPending = false;
 
 function flush() {
   flushPending = false;
+  if (acc.pos) send({ t: 'moveto', x: +acc.pos.x.toFixed(4), y: +acc.pos.y.toFixed(4) });
   if (acc.dx || acc.dy) send({ t: 'move', dx: +acc.dx.toFixed(2), dy: +acc.dy.toFixed(2) });
   if (acc.sx || acc.sy) send({ t: 'scroll', dx: +acc.sx.toFixed(1), dy: +acc.sy.toFixed(1) });
-  acc = { dx: 0, dy: 0, sx: 0, sy: 0 };
+  acc = { dx: 0, dy: 0, sx: 0, sy: 0, pos: null };
 }
 function queueFlush() { if (!flushPending) { flushPending = true; requestAnimationFrame(flush); } }
+
+/* Toucher directement l'image : les gestes du trackpad, mais en position absolue.
+   Glisser = le curseur suit le doigt ; tape = clic sous le doigt ; tape à deux doigts =
+   clic droit ; deux doigts qui glissent = défilement ; tape puis glisser = glisser-déposer. */
+const NEAR_PX = 28;              // « au même endroit », pour un doigt
+const touches = new Map();
+let sg = null;                   // geste en cours sur l'image
+let lastScreenTap = { t: 0, x: 0, y: 0 };
+function toScreen(cx, cy) {
+  const r = videoRect(); if (!r) return null;
+  const b = screenEl.getBoundingClientRect();
+  return { x: (cx - b.left - r.x) / r.w, y: (cy - b.top - r.y) / r.h };
+}
+const clamp01 = p => ({ x: Math.min(Math.max(p.x, 0), 1), y: Math.min(Math.max(p.y, 0), 1) });
+function cursorClient() {        // position du curseur du Mac, en pixels de la page
+  const r = videoRect(); if (!r || !lastCursor) return null;
+  const b = screenEl.getBoundingClientRect();
+  return { x: b.left + r.x + lastCursor.x * r.w, y: b.top + r.y + lastCursor.y * r.h };
+}
+screenEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!touches.size) {
+    const p = toScreen(e.clientX, e.clientY);
+    if (!p || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return;      // bandes noires
+    const now = performance.now();
+    sg = { t0: now, max: 1, travel: 0, drag: false, aimed: false, x0: e.clientX, y0: e.clientY };
+    const again = now - lastScreenTap.t < DRAG_MS + 80 &&
+      Math.hypot(e.clientX - lastScreenTap.x, e.clientY - lastScreenTap.y) < NEAR_PX;
+    if (again) { sg.drag = true; send({ t: 'down', b: 'left' }); }    // 2e clic, ou début de glisser
+  } else if (sg) sg.max = Math.max(sg.max, touches.size + 1);
+  else return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { screenEl.setPointerCapture(e.pointerId); } catch (err) {}
+});
+screenEl.addEventListener('pointermove', e => {
+  const f = touches.get(e.pointerId); if (!f || !sg) return;
+  const dx = e.clientX - f.x, dy = e.clientY - f.y;
+  f.x = e.clientX; f.y = e.clientY;
+  sg.travel += Math.hypot(dx, dy);
+  if (sg.travel < TAP_PX) return;            // encore peut-être une tape
+  if (touches.size === 1 && sg.max === 1) {
+    const p = toScreen(e.clientX, e.clientY); if (p) acc.pos = clamp01(p);
+  } else if (touches.size >= 2) {
+    if (!sg.aimed) {                         // le Mac fait défiler ce qui est sous le curseur
+      sg.aimed = true;
+      const p = toScreen(sg.x0, sg.y0); if (p) acc.pos = clamp01(p);
+    }
+    const r = videoRect();                   // le contenu suit à peu près les doigts
+    const k = Math.max(1.2, r ? video.videoWidth / r.w * 0.75 : 1.2) / touches.size;
+    acc.sx += dx * k; acc.sy += dy * k;
+  }
+  queueFlush();
+});
+function screenUp(e) {
+  if (!touches.delete(e.pointerId) || touches.size || !sg) return;
+  flush();
+  const now = performance.now();
+  const tap = sg.travel < TAP_PX && now - sg.t0 < TAP_MS + 50;
+  if (sg.drag) {                             // fin de glisser, ou 2e clic d'un double-clic
+    send({ t: 'up', b: 'left' });
+    if (tap) lastScreenTap.t = now;
+  } else if (tap) {
+    const b = sg.max >= 2 ? 'right' : 'left';
+    const c = cursorClient();                // tape sur le curseur : clic sans le déplacer
+    const onCursor = c && Math.hypot(sg.x0 - c.x, sg.y0 - c.y) < NEAR_PX;
+    const p = toScreen(sg.x0, sg.y0);
+    if (p && !onCursor) send({ t: 'moveto', x: +p.x.toFixed(4), y: +p.y.toFixed(4) });
+    send({ t: 'down', b }); send({ t: 'up', b });
+    if (b === 'left') lastScreenTap = { t: now, x: sg.x0, y: sg.y0 };
+  }
+  sg = null;
+}
+screenEl.addEventListener('pointerup', screenUp);
+screenEl.addEventListener('pointercancel', screenUp);
+
+/* Le trackpad : déplacements relatifs. */
+const fingers = new Map();
+let g = null;                    // geste en cours
+let lastTap = 0;                 // fin du dernier tap à un doigt
 
 pad.addEventListener('pointerdown', e => {
   e.preventDefault(); try { pad.setPointerCapture(e.pointerId); } catch (err) {}
