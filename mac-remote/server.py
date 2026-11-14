@@ -10,12 +10,14 @@ Le Mac lance ce script ; le téléphone ouvre l'URL affichée dans Safari.
 """
 import argparse
 import asyncio
+import ctypes
 import fractions
 import json
 import logging
 import secrets
 import socket
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -38,15 +40,8 @@ SPECIAL_KEYS = {
     "Enter": 36, "Tab": 48, "Space": 49, "Backspace": 51, "Escape": 53,
     "ArrowLeft": 123, "ArrowRight": 124, "ArrowDown": 125, "ArrowUp": 126,
 }
-# Disposition US, utilisée seulement si la disposition active est illisible.
-US_KEYCODES = {
-    "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8,
-    "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17,
-    "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25,
-    "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31, "u": 32, "[": 33,
-    "i": 34, "p": 35, "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42,
-    ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "`": 50,
-}
+# Touches « caractère » d'un clavier Apple (ANSI + ISO), hors touches spéciales.
+CHAR_KEYCODES = [k for k in range(0, 51) if k not in SPECIAL_KEYS.values()]
 DOUBLE_CLICK_S = 0.4
 DOUBLE_CLICK_PX = 6
 
@@ -83,6 +78,77 @@ class DummyInput:
         self._log("key", key, sorted(mods))
 
 
+def _keyboard_layout():
+    """(nom, traduire(code, mods)) pour la disposition clavier active (macOS).
+
+    `mods` suit UCKeyTranslate : 0x01 ⌘, 0x02 ⇧, 0x08 ⌥.
+    """
+    vp = ctypes.c_void_p
+    carbon = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/Carbon.framework/Carbon")
+    cf = ctypes.cdll.LoadLibrary(
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
+    carbon.TISCopyCurrentKeyboardLayoutInputSource.restype = vp
+    carbon.TISGetInputSourceProperty.restype = vp
+    carbon.TISGetInputSourceProperty.argtypes = [vp, vp]
+    carbon.LMGetKbdType.restype = ctypes.c_uint8
+    carbon.UCKeyTranslate.restype = ctypes.c_int32
+    carbon.UCKeyTranslate.argtypes = [
+        vp, ctypes.c_uint16, ctypes.c_uint16, ctypes.c_uint32, ctypes.c_uint32,
+        ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32), ctypes.c_ulong,
+        ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_uint16)]
+    cf.CFDataGetBytePtr.restype = vp
+    cf.CFDataGetBytePtr.argtypes = [vp]
+
+    src = carbon.TISCopyCurrentKeyboardLayoutInputSource()
+    if not src:
+        raise OSError("aucune source clavier active")
+    prop = lambda key: carbon.TISGetInputSourceProperty(  # noqa: E731
+        src, vp.in_dll(carbon, key).value)
+    data = prop("kTISPropertyUnicodeKeyLayoutData")
+    if not data:
+        raise OSError("la source active n'a pas de table Unicode")
+    layout = cf.CFDataGetBytePtr(data)
+    import objc
+    name = str(objc.objc_object(c_void_p=prop("kTISPropertyInputSourceID")))
+    kbd = carbon.LMGetKbdType()
+    # `src` n'est jamais libérée : la table `layout` lui appartient.
+
+    def translate(code, mods):
+        dead, n = ctypes.c_uint32(0), ctypes.c_ulong(0)
+        buf = (ctypes.c_uint16 * 4)()
+        # 1 = kUCKeyTranslateNoDeadKeysMask ; 0 = kUCKeyActionDown
+        st = carbon.UCKeyTranslate(layout, code, 0, mods, kbd, 1,
+                                   ctypes.byref(dead), 4, ctypes.byref(n), buf)
+        return bytes(buf)[: n.value * 2].decode("utf-16-le") if st == 0 else None
+
+    return name, translate
+
+
+def check_permissions():
+    """Signale (et demande) les permissions macOS manquantes au démarrage."""
+    import Quartz as Q
+    from Foundation import NSDictionary
+    import objc
+
+    hi = ctypes.cdll.LoadLibrary(
+        "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices")
+    hi.AXIsProcessTrustedWithOptions.restype = ctypes.c_bool
+    hi.AXIsProcessTrustedWithOptions.argtypes = [ctypes.c_void_p]
+    opts = NSDictionary.dictionaryWithDictionary_({"AXTrustedCheckOptionPrompt": True})
+    ok = True
+    if not Q.CGPreflightScreenCaptureAccess():
+        Q.CGRequestScreenCaptureAccess()
+        log.error("permission « Enregistrement de l'écran » manquante : image noire "
+                  "ou fond d'écran seul")
+        ok = False
+    if not hi.AXIsProcessTrustedWithOptions(objc.pyobjc_id(opts)):
+        log.error("permission « Accessibilité » manquante : clics et frappes ignorés")
+        ok = False
+    if not ok:
+        log.error("accorde-les à l'app qui lance ce script (Réglages Système › "
+                  "Confidentialité et sécurité), puis relance-le")
+
+
 class QuartzInput:
     """Injection souris/clavier sur macOS (permission Accessibilité requise)."""
 
@@ -97,29 +163,36 @@ class QuartzInput:
             "cmd": Q.kCGEventFlagMaskCommand, "ctrl": Q.kCGEventFlagMaskControl,
             "alt": Q.kCGEventFlagMaskAlternate, "shift": Q.kCGEventFlagMaskShift,
         }
-        self.keycodes = self._read_layout() or dict(US_KEYCODES)
+        self.keycodes = self._read_layout()
 
     def _read_layout(self):
-        """Caractère -> code de touche pour la disposition active (AZERTY, etc.)."""
-        Q = self.Q
-        table = {}
+        """Caractère -> code de touche pour la disposition active (AZERTY, etc.).
+
+        Lit la disposition avec UCKeyTranslate, sans touches mortes. (Traduire des
+        CGEvent synthétiques ne convient pas : l'état des touches mortes fuit d'un
+        appel à l'autre, et ⇧ est ignoré.) Sans disposition lisible, les raccourcis
+        sont refusés : un repli QWERTY ferait de ⌘A un ⌘Q sur un Mac AZERTY.
+        """
         try:
-            for code in range(0, 51):
-                if code in SPECIAL_KEYS.values():
-                    continue
-                ev = Q.CGEventCreateKeyboardEvent(None, code, True)
-                Q.CGEventSetFlags(ev, 0)
-                _, s = Q.CGEventKeyboardGetUnicodeString(ev, 4, None, None)
-                if s and s.strip():
-                    table.setdefault(s.lower(), code)
+            name, translate = _keyboard_layout()
         except Exception as e:  # noqa: BLE001
-            log.warning("disposition clavier illisible (%s) : repli sur QWERTY US", e)
-            return None
-        row = "".join(c for c, k in sorted(table.items(), key=lambda i: i[1])
-                      if k in (12, 13, 14, 15, 17, 16))
-        log.info("disposition clavier détectée : %d touches (rangée du haut : %s)",
-                 len(table), row)
-        return table if len(table) > 20 else None
+            log.error("disposition clavier illisible (%s) : raccourcis ⌘/⌃/⌥ désactivés", e)
+            return {}
+        table = {}
+        # ⌘ d'abord (dispositions « … – QWERTY ⌘ »), puis sans modificateur, puis ⇧ :
+        # sur AZERTY, ⌘1 vise ainsi la touche « & / 1 ».
+        for mods in (0x01, 0x00, 0x02):
+            for code in CHAR_KEYCODES:
+                s = translate(code, mods)
+                if s and len(s) == 1 and s.isprintable() and not s.isspace():
+                    table.setdefault(s.lower(), code)
+        top = "".join(translate(k, 0) or "?" for k in (12, 13, 14, 15, 17, 16))
+        log.info("disposition clavier détectée : %s, %d caractères (rangée du haut : %s)",
+                 name, len(table), top)
+        if len(table) < 20:
+            log.error("disposition clavier incomplète : raccourcis ⌘/⌃/⌥ désactivés")
+            return {}
+        return table
 
     def _bounds(self):
         b = self.Q.CGDisplayBounds(self.Q.CGMainDisplayID())
@@ -204,7 +277,7 @@ class QuartzInput:
             else:  # texte : indépendant de la disposition du Mac
                 ev = Q.CGEventCreateKeyboardEvent(None, 0, is_down)
                 Q.CGEventSetFlags(ev, 0)
-                Q.CGEventKeyboardSetUnicodeString(ev, len(key), key)
+                Q.CGEventKeyboardSetUnicodeString(ev, len(key.encode("utf-16-le")) // 2, key)
             Q.CGEventPost(Q.kCGHIDEventTap, ev)
 
 
@@ -219,36 +292,200 @@ def handle_input(inp, msg):
     elif t == "scroll":
         inp.scroll(float(msg.get("dx", 0)), float(msg.get("dy", 0)))
     elif t == "key":
-        key = str(msg["key"])[:8]
+        key = str(msg["key"])
         mods = [m for m in msg.get("mods", []) if m in ("cmd", "ctrl", "alt", "shift")]
+        if key not in SPECIAL_KEYS:
+            # Un nom de touche inconnu (« Delete », « F5 »…) ne doit pas être tapé en toutes
+            # lettres ; seul un caractère (ou un emoji composé) passe comme texte.
+            if len(key) > 1 and key.isascii():
+                log.warning("touche inconnue ignorée : %r", key)
+                return
+            key = key[:8]
         if key:
             inp.key(key, mods)
 
 # ------------------------------------------------------------------ vidéo
 
 
-class ScreenSource:
-    """Capture de l'écran principal avec mss, dans un fil dédié."""
+def _even_size(w, h, max_width):
+    scale = min(1.0, max_width / w)
+    return max(2, int(w * scale) // 2 * 2), max(2, int(h * scale) // 2 * 2)
 
-    def __init__(self, max_width):
-        self.max_width = max_width
+
+class ScreenSource:
+    """Capture de l'écran principal, convertie en yuv420p dans un fil dédié.
+
+    ScreenCaptureKit (macOS 12.3+) livre des images déjà réduites, à la cadence
+    voulue ; mss (CGWindowListCreateImage) sert de repli : ~100 ms par image sur
+    un écran Retina, soit moins de 10 images/s quelle que soit --max-width.
+    """
+
+    def __init__(self, max_width, fps=30):
+        self.max_width, self.fps = max_width, fps
         self.pool = ThreadPoolExecutor(max_workers=1)
         self.sct = None
+        self.sck = None  # démarré à la première image demandée, pas au lancement
+        self.sck_failed = False
 
-    def _grab(self):
+    def _start_sck(self):
+        try:
+            self.sck = _SCKCapture(self.max_width, self.fps)
+            log.info("capture : ScreenCaptureKit, %dx%d", self.sck.width, self.sck.height)
+        except Exception as e:  # noqa: BLE001
+            self.sck_failed = True
+            log.warning("ScreenCaptureKit indisponible (%s) : repli sur mss, plus lent", e)
+
+    def _grab_mss(self):
         if self.sct is None:
             import mss
-            self.sct = mss.mss()
+            self.sct = (getattr(mss, "MSS", None) or mss.mss)()
         shot = self.sct.grab(self.sct.monitors[1])
-        arr = np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
-        frame = VideoFrame.from_ndarray(arr, format="bgra")
-        scale = min(1.0, self.max_width / shot.width)
-        w = int(shot.width * scale) // 2 * 2
-        h = int(shot.height * scale) // 2 * 2
-        return frame.reformat(width=w, height=h, format="yuv420p")
+        return np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
+
+    def _grab(self):
+        if self.sck is None and not self.sck_failed:
+            self._start_sck()
+        arr = self.sck.latest(timeout=1.0) if self.sck else self._grab_mss()
+        if arr is None:  # pas encore de première image
+            arr = np.zeros((self.sck.height, self.sck.width, 4), np.uint8)
+        w, h = _even_size(arr.shape[1], arr.shape[0], self.max_width)
+        return VideoFrame.from_ndarray(arr, format="bgra").reformat(
+            width=w, height=h, format="yuv420p")
 
     async def frame(self):
         return await asyncio.get_running_loop().run_in_executor(self.pool, self._grab)
+
+    def close(self):
+        if self.sck:
+            self.sck.stop()
+            self.sck = None
+
+
+_SCK = {}
+
+
+def _sck_runtime():
+    """Charge ScreenCaptureKit et déclare, une seule fois, la classe qui reçoit les images."""
+    if _SCK:
+        return _SCK
+    import objc
+    import ScreenCaptureKit as SCK
+    from Foundation import NSObject
+
+    # Le module CoreMedia de PyObjC ne se charge pas avec tous les Python
+    # (libswiftCoreMedia introuvable) : on passe par ctypes.
+    vp = ctypes.c_void_p
+    cm = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreMedia.framework/CoreMedia")
+    cv = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreVideo.framework/CoreVideo")
+    cm.CMSampleBufferGetImageBuffer.restype = vp
+    cm.CMSampleBufferGetImageBuffer.argtypes = [vp]
+    for n in ("Width", "Height", "BytesPerRow"):
+        f = getattr(cv, "CVPixelBufferGet" + n)
+        f.restype, f.argtypes = ctypes.c_size_t, [vp]
+    cv.CVPixelBufferGetBaseAddress.restype = vp
+    cv.CVPixelBufferGetBaseAddress.argtypes = [vp]
+    for n in ("Lock", "Unlock"):
+        f = getattr(cv, f"CVPixelBuffer{n}BaseAddress")
+        f.restype, f.argtypes = ctypes.c_int32, [vp, ctypes.c_uint64]
+    objc.createOpaquePointerType("CMSampleBufferRef", b"^{opaqueCMSampleBuffer=}")
+
+    class MacRemoteStreamOutput(NSObject, protocols=[objc.protocolNamed("SCStreamOutput")]):
+        def stream_didOutputSampleBuffer_ofType_(self, stream, sbuf, kind):
+            if kind != SCK.SCStreamOutputTypeScreen:
+                return
+            try:
+                img = cm.CMSampleBufferGetImageBuffer(sbuf.__pointer__)
+                if not img:  # image « inchangée » : rien à copier
+                    return
+                cv.CVPixelBufferLockBaseAddress(img, 1)
+                try:
+                    h, w = cv.CVPixelBufferGetHeight(img), cv.CVPixelBufferGetWidth(img)
+                    bpr = cv.CVPixelBufferGetBytesPerRow(img)
+                    raw = (ctypes.c_uint8 * (bpr * h)).from_address(
+                        cv.CVPixelBufferGetBaseAddress(img))
+                    arr = np.frombuffer(raw, np.uint8).reshape(h, bpr // 4, 4)[:, :w].copy()
+                finally:
+                    cv.CVPixelBufferUnlockBaseAddress(img, 1)
+                self.owner._deliver(arr)
+            except Exception as e:  # noqa: BLE001 — une exception ici tuerait le processus
+                log.warning("image ignorée : %s", e)
+
+    _SCK.update(SCK=SCK, Output=MacRemoteStreamOutput)
+    return _SCK
+
+
+class _SCKCapture:
+    """Flux ScreenCaptureKit de l'écran principal ; garde la dernière image BGRA."""
+
+    def __init__(self, max_width, fps):
+        import Quartz as Q
+
+        rt = _sck_runtime()
+        SCK = rt["SCK"]
+        self._cond = threading.Condition()
+        self._arr = None
+        self._stream = None
+
+        content, err = self._wait(SCK.SCShareableContent.getShareableContentWithCompletionHandler_)
+        if err is not None or content is None:
+            raise OSError(err)
+        main = Q.CGMainDisplayID()
+        display = next(d for d in content.displays() if d.displayID() == main)
+        mode = Q.CGDisplayCopyDisplayMode(main)
+        px_w = Q.CGDisplayModeGetPixelWidth(mode) if mode else display.width()
+        px_h = Q.CGDisplayModeGetPixelHeight(mode) if mode else display.height()
+        self.width, self.height = _even_size(px_w, px_h, max_width)
+
+        cfg = SCK.SCStreamConfiguration.alloc().init()
+        cfg.setWidth_(self.width)
+        cfg.setHeight_(self.height)
+        cfg.setMinimumFrameInterval_((1, fps, 1, 0))  # CMTime 1/fps
+        cfg.setPixelFormat_(int.from_bytes(b"BGRA", "big"))
+        cfg.setShowsCursor_(False)  # la page dessine son propre curseur
+        cfg.setQueueDepth_(3)
+        flt = SCK.SCContentFilter.alloc().initWithDisplay_excludingWindows_(display, [])
+        stream = SCK.SCStream.alloc().initWithFilter_configuration_delegate_(flt, cfg, None)
+        self._output = rt["Output"].alloc().init()
+        self._output.owner = self
+        ok, err = stream.addStreamOutput_type_sampleHandlerQueue_error_(
+            self._output, SCK.SCStreamOutputTypeScreen, None, None)
+        if not ok:
+            raise OSError(err)
+        (err,) = self._wait(stream.startCaptureWithCompletionHandler_)
+        if err is not None:
+            raise OSError(err)
+        self._stream = stream
+
+    @staticmethod
+    def _wait(start):
+        done, box = threading.Event(), {}
+
+        def handler(*a):  # bloc ObjC : ne doit rien renvoyer
+            box["r"] = a
+            done.set()
+        start(handler)
+        if not done.wait(10):
+            raise TimeoutError("ScreenCaptureKit ne répond pas")
+        return box["r"]
+
+    def _deliver(self, arr):
+        with self._cond:
+            self._arr = arr
+            self._cond.notify_all()
+
+    def latest(self, timeout):
+        with self._cond:
+            if self._arr is None:
+                self._cond.wait(timeout)
+            return self._arr
+
+    def stop(self):
+        stream, self._stream = self._stream, None
+        if stream is not None:
+            try:
+                self._wait(stream.stopCaptureWithCompletionHandler_)
+            except Exception:  # noqa: BLE001
+                pass
 
 
 class TestSource:
@@ -337,6 +574,8 @@ async def ws_handler(request):
     ws = web.WebSocketResponse(heartbeat=15)
     await ws.prepare(request)
     inp = request.app["input"]
+    sockets = request.app["state"].setdefault("sockets", set())
+    sockets.add(ws)
     log.info("télécommande connectée depuis %s", request.remote)
 
     async def push_cursor():
@@ -361,6 +600,7 @@ async def ws_handler(request):
             except Exception as e:  # noqa: BLE001
                 log.warning("message ignoré (%s) : %.80s", e, msg.data)
     finally:
+        sockets.discard(ws)
         task.cancel()
         for b in ("left", "right"):  # ne jamais laisser un bouton enfoncé
             if b in getattr(inp, "down", ()):
@@ -370,8 +610,14 @@ async def ws_handler(request):
 
 
 async def on_shutdown(app):
+    # Sans cela, l'arrêt (Ctrl-C) attend jusqu'à 60 s qu'un téléphone connecté se déconnecte.
+    for ws in list(app["state"].get("sockets", ())):
+        await ws.close(code=1001, message=b"arret du serveur")
     if app["state"].get("pc"):
         await app["state"]["pc"].close()
+    close = getattr(app["source"], "close", None)
+    if close:
+        close()
 
 
 def load_token(renew):
@@ -432,8 +678,9 @@ def main():
     elif sys.platform != "darwin":
         sys.exit("Ce serveur pilote un Mac. Hors macOS, utilisez --dry-run.")
     else:
+        check_permissions()
         inp = QuartzInput()
-        source = ScreenSource(args.max_width)
+        source = ScreenSource(args.max_width, args.fps)
 
     app = web.Application()
     app.update(token=load_token(args.new_token), input=inp, source=source, fps=args.fps, state={})
@@ -445,7 +692,7 @@ def main():
     print("\nOuvre l'une de ces adresses dans Safari sur l'iPhone :")
     for a in local_addresses() or ["<adresse-du-mac>"]:
         print(f"  http://{a}:{args.port}/?t={app['token']}")
-    print("Ce lien donne le contrôle total du Mac : ne le partage pas.\n")
+    print("Ce lien donne le contrôle total du Mac : ne le partage pas.\n", flush=True)
     web.run_app(app, host=args.host, port=args.port, print=None)
 
 

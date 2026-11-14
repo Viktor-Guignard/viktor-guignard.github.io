@@ -3,3 +3,4 @@ aiohttp>=3.9
 mss>=9
 numpy
 pyobjc-framework-Quartz; sys_platform == "darwin"
+pyobjc-framework-ScreenCaptureKit; sys_platform == "darwin"

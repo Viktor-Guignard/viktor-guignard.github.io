@@ -8,17 +8,31 @@ un clavier et un trackpad en bas. Aucune app à installer sur le téléphone, pa
 ```sh
 cd mac-remote
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install --only-binary=:all: -r requirements.txt
 python3 server.py
 ```
 
+`--only-binary=:all:` force les paquets précompilés : sans lui, pip peut vouloir compiler
+`cryptography` (Mac Intel), ce qui exige les outils de développement d'Apple.
+
+Il faut un vrai Python 3.10+ : le `python3` de macOS n'est qu'un raccourci vers les
+Command Line Tools. Sans Xcode ni Command Line Tools, [micromamba](https://mamba.readthedocs.io)
+installe Python et git dans le dossier personnel, sans mot de passe administrateur :
+
+```sh
+mkdir -p ~/.micromamba && cd ~/.micromamba
+curl -fsSL https://micro.mamba.pm/api/micromamba/osx-64/latest | tar -xj bin/micromamba   # osx-arm64 sur Apple Silicon
+MAMBA_ROOT_PREFIX=~/.micromamba bin/micromamba create -y -n tools -c conda-forge python=3.12 git
+~/.micromamba/envs/tools/bin/python3 -m venv .venv   # depuis mac-remote/, à la place de « python3 -m venv »
+```
+
 Au premier lancement, macOS demande deux permissions pour l'app qui lance le script
-(Terminal, iTerm…) dans Réglages Système › Confidentialité et sécurité :
+(Terminal, iTerm, Claude Code…) dans Réglages Système › Confidentialité et sécurité :
 
 - **Enregistrement de l'écran** : sans elle, l'image est noire ou ne montre que le fond d'écran ;
 - **Accessibilité** : sans elle, les clics et les frappes sont ignorés.
 
-Relance le script après les avoir accordées.
+Le script signale au démarrage celles qui manquent. Relance-le après les avoir accordées.
 
 ## Utilisation (sur l'iPhone)
 
@@ -61,4 +75,8 @@ Wi-Fi que tu ne maîtrises pas, passe par Tailscale et lance `server.py --host <
 - L'image garde le format de l'écran du Mac (bandes noires) ; BetterDisplay permet de
   créer un écran virtuel au format du téléphone.
 - Seul l'écran principal est capturé, un seul téléphone à la fois.
-- Encodage logiciel : compter 15 à 30 images/s selon le Mac et `--max-width`.
+- Capture par ScreenCaptureKit (macOS 12.3+), repli sur mss (moins de 10 images/s en Retina).
+- Encodage logiciel : 30 images/s en 1920×1200 sur un MacBook Pro Intel, au prix de deux
+  cœurs ; baisse `--max-width` si l'image saccade.
+- Les raccourcis suivent la disposition clavier active au lancement du script : relance-le
+  si tu en changes.
