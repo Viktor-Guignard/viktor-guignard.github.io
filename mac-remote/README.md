@@ -75,15 +75,34 @@ trackpad reviennent à la verticale.
 --fps 30           images par seconde
 --max-width 1920   largeur maximale de l'image envoyée
 --bitrate 8        débit vidéo maximal en Mbit/s
---new-token        change le jeton (invalide les anciens liens)
+--new-token        change le jeton (invalide les anciens liens et les sessions ouvertes)
+--set-password     choisit le mot de passe de la page de connexion, puis quitte
+--clear-password   supprime le mot de passe (retour au lien à jeton), puis quitte
 --dry-run          mire + entrées journalisées, pour tester sans Mac
 ```
 
+## Mot de passe et adresse fixe
+
+Sans mot de passe, l'accès passe par le lien à jeton (`…/?t=…`), stocké dans
+`~/.mac-remote-token`. Ce lien donne le contrôle total du Mac.
+
+Avec un mot de passe, l'adresse n'a plus de jeton et ne change plus :
+`http://<nom-du-mac>.local:8787/` à la maison, ou l'adresse Tailscale partout. La page
+demande le mot de passe, puis l'appareil reste connecté 30 jours.
+
+- Le choisir : bouton « Mot de passe » de la télécommande, ou `python3 server.py --set-password`.
+- Dès qu'il existe, le lien à jeton ne marche plus. Le changer déconnecte les autres appareils.
+- Seule son empreinte (scrypt) est enregistrée, dans `~/.mac-remote-password`.
+- Cinq erreurs de suite bloquent les essais 30 s, puis le double à chaque nouvelle erreur.
+- Oublié : `python3 server.py --clear-password`, puis relance le serveur.
+
 ## Sécurité
 
-Le lien contient un jeton qui donne le contrôle total du Mac. Il est stocké dans
-`~/.mac-remote-token`. La connexion n'est pas chiffrée sur le réseau local : sur un
-Wi-Fi que tu ne maîtrises pas, passe par Tailscale et lance `server.py --host <IP Tailscale>`.
+La vidéo est toujours chiffrée (WebRTC). Le reste — page, mot de passe, clavier, souris —
+circule en clair sur le réseau local. Pour que tout soit chiffré, passe par
+[Tailscale](https://tailscale.com) : installe-le sur le Mac et l'iPhone, et ouvre l'adresse
+Tailscale du Mac (`http://100.x.y.z:8787/` ou son nom MagicDNS). `server.py --host <IP Tailscale>`
+ferme en plus l'accès par le réseau local.
 
 ## Limites
 

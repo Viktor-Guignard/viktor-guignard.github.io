@@ -12,15 +12,22 @@ import argparse
 import asyncio
 import ctypes
 import fractions
+import getpass
+import hashlib
+import hmac
+import html
 import json
 import logging
+import os
 import secrets
 import socket
+import subprocess
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import numpy as np
 from aiohttp import WSMsgType, web
@@ -33,6 +40,10 @@ from av import VideoFrame
 log = logging.getLogger("mac-remote")
 STATIC = Path(__file__).parent / "static"
 TOKEN_FILE = Path.home() / ".mac-remote-token"
+PASSWORD_FILE = Path.home() / ".mac-remote-password"
+SESSION_COOKIE = "mac_remote"
+SESSION_DAYS = 30
+MIN_PASSWORD = 8
 
 # ---------------------------------------------------------------- entrées
 
@@ -558,19 +569,172 @@ class ScreenTrack(VideoStreamTrack):
 # ---------------------------------------------------------------- serveur
 
 
+def _scrypt(password, salt):
+    return hashlib.scrypt(password.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32)
+
+
+def load_password():
+    """(sel, empreinte) du mot de passe, ou None s'il n'y en a pas."""
+    try:
+        d = json.loads(PASSWORD_FILE.read_text())
+        return bytes.fromhex(d["salt"]), bytes.fromhex(d["hash"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def save_password(password):
+    """Enregistre l'empreinte scrypt du mot de passe (jamais le mot de passe lui-même)."""
+    salt = secrets.token_bytes(16)
+    rec = (salt, _scrypt(password, salt))
+    fd = os.open(PASSWORD_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump({"salt": salt.hex(), "hash": rec[1].hex()}, f)
+    PASSWORD_FILE.chmod(0o600)
+    return rec
+
+
+def _session_sig(app, exp):
+    # Changer de mot de passe ou de jeton invalide toutes les sessions ouvertes.
+    key = hashlib.sha256(app["token"].encode() + app["password"][1]).digest()
+    return hmac.new(key, str(exp).encode(), "sha256").hexdigest()
+
+
+def new_session(app):
+    exp = int(time.time()) + SESSION_DAYS * 86400
+    return f"{exp}.{_session_sig(app, exp)}"
+
+
+def valid_session(app, value):
+    exp, _, sig = value.partition(".")
+    if not exp.isdigit() or int(exp) < time.time():
+        return False
+    return hmac.compare_digest(sig.encode(), _session_sig(app, int(exp)).encode())
+
+
 def authorized(request):
-    given = request.query.get("t", "")
-    return secrets.compare_digest(given, request.app["token"])
+    """Avec un mot de passe : session ouverte par /login. Sinon : jeton dans l'adresse."""
+    app = request.app
+    if app["password"]:
+        return valid_session(app, request.cookies.get(SESSION_COOKIE, ""))
+    return hmac.compare_digest(request.query.get("t", "").encode(), app["token"].encode())
+
+
+def same_origin(request):
+    """Refuse les requêtes lancées par une autre page web (le navigateur envoie Origin)."""
+    origin = request.headers.get("Origin")
+    if not origin:
+        return True
+    return urlsplit(origin).netloc in (request.host, request.headers.get("X-Forwarded-Host"))
+
+
+class LoginGuard:
+    """Freine les essais de mot de passe : 5 erreurs, puis blocage de 30 s qui double."""
+
+    def __init__(self):
+        self.fails = {}  # adresse -> (erreurs, bloqué jusqu'à)
+
+    def locked(self, ip):
+        return max(0, self.fails.get(ip, (0, 0))[1] - time.monotonic())
+
+    def fail(self, ip):
+        n = self.fails.get(ip, (0, 0))[0] + 1
+        lock = min(30 * 2 ** (n - 5), 3600) if n >= 5 else 0
+        self.fails[ip] = (n, time.monotonic() + lock)
+
+    def ok(self, ip):
+        self.fails.pop(ip, None)
+
+
+def _form_page(status=200, error="", **parts):
+    page = (STATIC / "login.html").read_text(encoding="utf-8")
+    for key, value in parts.items():  # fragments écrits ici, jamais saisis par l'utilisateur
+        page = page.replace("{{%s}}" % key, value)
+    page = page.replace("{{error}}", html.escape(error))
+    return web.Response(status=status, text=page, content_type="text/html",
+                        headers={"Cache-Control": "no-store"})
+
+
+def login_page(status=200, error=""):
+    return _form_page(
+        status, error, title="Mac", hint="Mot de passe pour piloter ce Mac.", footer="",
+        fields='<input type="password" name="password" placeholder="Mot de passe" '
+               'autocomplete="current-password" required autofocus>',
+        button="Se connecter")
+
+
+def password_page(request, status=200, error=""):
+    back = "/" + (f"?{request.query_string}" if request.query_string else "")
+    return _form_page(
+        status, error, title="Mot de passe",
+        hint=f"Au moins {MIN_PASSWORD} caractères. Il remplace le lien à jeton et "
+             "déconnecte les autres appareils.",
+        fields='<input type="password" name="password" placeholder="Nouveau mot de passe" '
+               f'autocomplete="new-password" minlength="{MIN_PASSWORD}" required autofocus>'
+               '<input type="password" name="confirm" placeholder="Encore une fois" '
+               f'autocomplete="new-password" minlength="{MIN_PASSWORD}" required>',
+        button="Enregistrer", footer=f'<a href="{html.escape(back)}">Annuler</a>')
+
+
+def _open_session(request):
+    """Redirige vers la télécommande avec le cookie de session."""
+    resp = web.Response(status=303, headers={"Location": "/"})
+    https = request.secure or request.headers.get("X-Forwarded-Proto") == "https"
+    resp.set_cookie(SESSION_COOKIE, new_session(request.app), max_age=SESSION_DAYS * 86400,
+                    httponly=True, samesite="Strict", secure=https, path="/")
+    return resp
 
 
 async def index(request):
+    if authorized(request):
+        return web.FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
+    if request.app["password"]:
+        return login_page(401)  # 401 : la télécommande sait ainsi que sa session a expiré
+    return web.Response(status=403, text="Jeton manquant ou invalide.")
+
+
+async def login(request):
+    app = request.app
+    if not app["password"]:
+        return web.Response(status=303, headers={"Location": "/"})
+    if not same_origin(request):
+        return web.Response(status=403)
+    ip, guard = request.remote, app["guard"]
+    wait = guard.locked(ip)
+    if wait:
+        return login_page(429, f"Trop d'essais. Réessaie dans {int(wait) + 1} s.")
+    password = str((await request.post()).get("password", ""))[:256]
+    salt, digest = app["password"]
+    if not hmac.compare_digest(await asyncio.to_thread(_scrypt, password, salt), digest):
+        guard.fail(ip)
+        log.warning("mot de passe refusé depuis %s", ip)
+        await asyncio.sleep(1)
+        return login_page(401, "Mot de passe incorrect.")
+    guard.ok(ip)
+    log.info("connexion par mot de passe depuis %s", ip)
+    return _open_session(request)
+
+
+async def set_password(request):
+    """Choisir ou changer le mot de passe, depuis un appareil déjà autorisé."""
     if not authorized(request):
-        return web.Response(status=403, text="Jeton manquant ou invalide.")
-    return web.FileResponse(STATIC / "index.html")
+        return web.Response(status=303, headers={"Location": "/"})
+    if request.method != "POST":
+        return password_page(request)
+    if not same_origin(request):
+        return web.Response(status=403)
+    data = await request.post()
+    password = str(data.get("password", ""))
+    if len(password) < MIN_PASSWORD or len(password) > 256:
+        return password_page(request, 400, f"Il faut au moins {MIN_PASSWORD} caractères.")
+    if password != str(data.get("confirm", "")):
+        return password_page(request, 400, "Les deux saisies ne sont pas identiques.")
+    request.app["password"] = await asyncio.to_thread(save_password, password)
+    log.info("mot de passe enregistré depuis %s : le lien à jeton ne marche plus", request.remote)
+    return _open_session(request)
 
 
 async def offer(request):
-    if not authorized(request):
+    if not authorized(request) or not same_origin(request):
         return web.Response(status=403)
     app = request.app
     params = await request.json()
@@ -601,7 +765,7 @@ async def offer(request):
 
 
 async def ws_handler(request):
-    if not authorized(request):
+    if not authorized(request) or not same_origin(request):
         return web.Response(status=403)
     ws = web.WebSocketResponse(heartbeat=15)
     await ws.prepare(request)
@@ -682,6 +846,26 @@ def local_addresses():
     return sorted(a for a in addrs if not a.startswith("127."))
 
 
+def local_name():
+    """Nom Bonjour du Mac (« MacBook-de-X.local ») : il ne change pas avec le réseau."""
+    try:
+        name = subprocess.run(["scutil", "--get", "LocalHostName"], capture_output=True,
+                              text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        name = ""
+    return f"{name}.local" if name else None
+
+
+def ask_password():
+    first = getpass.getpass(f"Nouveau mot de passe ({MIN_PASSWORD} caractères au moins) : ")
+    if len(first) < MIN_PASSWORD:
+        sys.exit("Trop court : rien n'a été changé.")
+    if getpass.getpass("Encore une fois : ") != first:
+        sys.exit("Les deux saisies diffèrent : rien n'a été changé.")
+    save_password(first)
+    print("Mot de passe enregistré. Relance le serveur s'il tourne déjà.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--host", default="0.0.0.0")
@@ -691,9 +875,18 @@ def main():
                     help="largeur maximale de l'image envoyée (défaut 1920)")
     ap.add_argument("--bitrate", type=float, default=8.0, help="débit vidéo max en Mbit/s")
     ap.add_argument("--new-token", action="store_true", help="génère un nouveau jeton")
+    ap.add_argument("--set-password", action="store_true",
+                    help="choisit le mot de passe de la page de connexion, puis quitte")
+    ap.add_argument("--clear-password", action="store_true",
+                    help="supprime le mot de passe (retour au lien à jeton), puis quitte")
     ap.add_argument("--dry-run", action="store_true",
                     help="mire + entrées journalisées (test sans Mac)")
     args = ap.parse_args()
+    if args.set_password:
+        return ask_password()
+    if args.clear_password:
+        PASSWORD_FILE.unlink(missing_ok=True)
+        return print("Mot de passe supprimé. Relance le serveur s'il tourne déjà.")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     logging.getLogger("aioice").setLevel(logging.WARNING)
     logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
@@ -715,16 +908,28 @@ def main():
         source = ScreenSource(args.max_width, args.fps)
 
     app = web.Application()
-    app.update(token=load_token(args.new_token), input=inp, source=source, fps=args.fps, state={})
+    app.update(token=load_token(args.new_token), password=load_password(), guard=LoginGuard(),
+               input=inp, source=source, fps=args.fps, state={})
     app.router.add_get("/", index)
+    app.router.add_post("/", login)
+    app.router.add_route("*", "/password", set_password)
     app.router.add_post("/offer", offer)
     app.router.add_get("/ws", ws_handler)
     app.on_shutdown.append(on_shutdown)
 
+    hosts = [h for h in [local_name(), *local_addresses()] if h] or ["<adresse-du-mac>"]
     print("\nOuvre l'une de ces adresses dans Safari sur l'iPhone :")
-    for a in local_addresses() or ["<adresse-du-mac>"]:
-        print(f"  http://{a}:{args.port}/?t={app['token']}")
-    print("Ce lien donne le contrôle total du Mac : ne le partage pas.\n", flush=True)
+    if app["password"]:
+        for h in hosts:
+            print(f"  http://{h}:{args.port}/")
+        print("La page demande le mot de passe. La première adresse ne change jamais.\n",
+              flush=True)
+    else:
+        for h in hosts:
+            print(f"  http://{h}:{args.port}/?t={app['token']}")
+        print("Ce lien donne le contrôle total du Mac : ne le partage pas.\n"
+              "Pour une adresse sans jeton, choisis un mot de passe : bouton « Mot de passe » "
+              "de la page,\nou python3 server.py --set-password.\n", flush=True)
     web.run_app(app, host=args.host, port=args.port, print=None)
 
 

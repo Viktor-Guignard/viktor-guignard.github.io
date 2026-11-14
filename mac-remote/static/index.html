@@ -43,6 +43,7 @@
     padding: 6px 10px 2px; background: var(--deck);
     border-top: 1px solid var(--line);
   }
+  #btn-pass { margin-right: auto; }
   #bar button {
     appearance: none; border: 0; border-radius: 999px; padding: 5px 11px; min-width: 40px;
     background: rgba(255,255,255,.07); color: var(--ink-dim); font: inherit; font-size: 11px;
@@ -114,6 +115,7 @@
     <div id="status">Connexion…</div>
   </div>
   <div id="bar">
+    <button id="btn-pass" aria-label="Choisir ou changer le mot de passe">Mot de passe</button>
     <button id="btn-layout" aria-label="Disposition du clavier">AZERTY</button>
     <button id="btn-kb" aria-label="Afficher ou masquer le clavier">Clavier</button>
   </div>
@@ -137,7 +139,12 @@ function connectWS() {
   ws = new WebSocket(`${proto}://${location.host}/ws?t=${encodeURIComponent(token)}`);
   ws.onopen = () => { queue.splice(0).forEach(m => ws.send(m)); };
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'cursor') placeCursor(m.x, m.y); };
-  ws.onclose = () => { ws = null; setTimeout(connectWS, 1000); };
+  ws.onclose = () => { ws = null; checkSession(); setTimeout(connectWS, 1000); };
+}
+/* Connexion par mot de passe : si la session a expiré, revenir à la page de connexion. */
+function checkSession() {
+  if (token) return;
+  fetch('/', { cache: 'no-store' }).then(r => { if (r.status === 401) location.reload(); }, () => {});
 }
 function send(msg) {
   const data = JSON.stringify(msg);
@@ -171,7 +178,10 @@ async function connectVideo() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type }),
     });
-    if (r.status === 403) return setStatus('Lien invalide : rouvre l’adresse affichée sur le Mac.');
+    if (r.status === 403) {
+      if (!token) return location.reload();             // session expirée : page de connexion
+      return setStatus('Lien invalide : rouvre l’adresse affichée sur le Mac.');
+    }
     if (!r.ok) throw new Error(r.status);
     if (me === pc) await pc.setRemoteDescription(await r.json());
   } catch (e) { if (me === pc) scheduleRetry(); }
@@ -419,6 +429,7 @@ $('btn-layout').addEventListener('click', () => {
   try { localStorage.setItem('layout', layout); } catch (e) {}
   symbols = false; render();
 });
+$('btn-pass').addEventListener('click', () => { location.href = '/password' + location.search; });
 $('btn-kb').addEventListener('click', () => {
   $('deck').classList.toggle('nokb');
   requestAnimationFrame(() => placeCursor());

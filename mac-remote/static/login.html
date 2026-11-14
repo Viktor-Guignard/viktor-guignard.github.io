@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0b0d">
+<title>Mac</title>
+<style>
+  :root { --bg: #000; --card: #1c1c1e; --field: #2c2c2e; --ink: #f5f5f7; --ink-dim: #98989d;
+          --line: #3a3a3d; --accent: #0a84ff; --bad: #ff6961; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink);
+    font: 400 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh;
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+             max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+  form { width: min(100%, 340px); display: flex; flex-direction: column; gap: 12px;
+    padding: 24px 20px 20px; border-radius: 18px; background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line); }
+  h1 { margin: 0 0 2px; font-size: 20px; font-weight: 600; text-align: center; }
+  p { margin: 0; color: var(--ink-dim); font-size: 13px; text-align: center; }
+  p.error { color: var(--bad); }
+  p.error:empty { display: none; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-dim); }
+  input { appearance: none; width: 100%; padding: 12px 14px; border: 0; border-radius: 10px;
+    background: var(--field); color: var(--ink); font: inherit; font-size: 17px; outline: none; }
+  input:focus { box-shadow: 0 0 0 2px var(--accent); }
+  button { appearance: none; margin-top: 4px; padding: 13px; border: 0; border-radius: 10px;
+    background: var(--accent); color: #fff; font: inherit; font-weight: 600; }
+  button:active { opacity: .8; }
+  a { color: var(--ink-dim); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<form method="post" autocomplete="on">
+  <h1>{{title}}</h1>
+  <p>{{hint}}</p>
+  <p class="error" role="alert">{{error}}</p>
+  <input type="text" name="username" value="mac" autocomplete="username" hidden>
+  {{fields}}
+  <button type="submit">{{button}}</button>
+  {{footer}}
+</form>
+</body>
+</html>
