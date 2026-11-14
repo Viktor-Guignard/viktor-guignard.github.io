@@ -78,23 +78,33 @@ trackpad reviennent à la verticale.
 --new-token        change le jeton (invalide les anciens liens et les sessions ouvertes)
 --set-password     choisit le mot de passe de la page de connexion, puis quitte
 --clear-password   supprime le mot de passe (retour au lien à jeton), puis quitte
+--clear-totp       supprime le code Google Authenticator, puis quitte
 --dry-run          mire + entrées journalisées, pour tester sans Mac
 ```
 
-## Mot de passe et adresse fixe
+## Connexion et adresse fixe
 
-Sans mot de passe, l'accès passe par le lien à jeton (`…/?t=…`), stocké dans
+Sans réglage, l'accès passe par le lien à jeton (`…/?t=…`), stocké dans
 `~/.mac-remote-token`. Ce lien donne le contrôle total du Mac.
 
-Avec un mot de passe, l'adresse n'a plus de jeton et ne change plus :
-`http://<nom-du-mac>.local:8787/` à la maison, ou l'adresse Tailscale partout. La page
-demande le mot de passe, puis l'appareil reste connecté 30 jours.
+Le bouton « Sécurité » de la télécommande le remplace par une page de connexion, au choix :
 
-- Le choisir : bouton « Mot de passe » de la télécommande, ou `python3 server.py --set-password`.
-- Dès qu'il existe, le lien à jeton ne marche plus. Le changer déconnecte les autres appareils.
-- Seule son empreinte (scrypt) est enregistrée, dans `~/.mac-remote-password`.
+- **Google Authenticator** (ou toute application de codes à 6 chiffres) : « Ajouter à
+  l'application » ouvre l'application sur le téléphone ; sinon, saisis la clé affichée.
+  L'activation demande un premier code. La clé est enregistrée dans `~/.mac-remote-totp`.
+- **Un mot de passe** : seule son empreinte (scrypt) est enregistrée, dans
+  `~/.mac-remote-password`. `python3 server.py --set-password` le choisit aussi.
+- **Les deux** : la page demande alors le mot de passe et le code.
+
+L'adresse n'a alors plus de jeton et ne change plus : `http://<nom-du-mac>.local:8787/` à
+la maison, ou l'adresse Tailscale partout. L'appareil reste connecté 30 jours.
+
+- Dès qu'une connexion est réglée, le lien à jeton ne marche plus. La changer déconnecte
+  les autres appareils.
 - Cinq erreurs de suite bloquent les essais 30 s, puis le double à chaque nouvelle erreur.
-- Oublié : `python3 server.py --clear-password`, puis relance le serveur.
+  Un code ne sert qu'une fois.
+- Téléphone perdu ou mot de passe oublié : `python3 server.py --clear-totp` ou
+  `--clear-password` sur le Mac, puis relance le serveur.
 
 ## Sécurité
 

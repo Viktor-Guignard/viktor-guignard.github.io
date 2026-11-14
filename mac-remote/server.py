@@ -10,6 +10,7 @@ Le Mac lance ce script ; le téléphone ouvre l'URL affichée dans Safari.
 """
 import argparse
 import asyncio
+import base64
 import ctypes
 import fractions
 import getpass
@@ -21,13 +22,14 @@ import logging
 import os
 import secrets
 import socket
+import struct
 import subprocess
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import numpy as np
 from aiohttp import WSMsgType, web
@@ -41,6 +43,7 @@ log = logging.getLogger("mac-remote")
 STATIC = Path(__file__).parent / "static"
 TOKEN_FILE = Path.home() / ".mac-remote-token"
 PASSWORD_FILE = Path.home() / ".mac-remote-password"
+TOTP_FILE = Path.home() / ".mac-remote-totp"
 SESSION_COOKIE = "mac_remote"
 SESSION_DAYS = 30
 MIN_PASSWORD = 8
@@ -586,16 +589,52 @@ def save_password(password):
     """Enregistre l'empreinte scrypt du mot de passe (jamais le mot de passe lui-même)."""
     salt = secrets.token_bytes(16)
     rec = (salt, _scrypt(password, salt))
-    fd = os.open(PASSWORD_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump({"salt": salt.hex(), "hash": rec[1].hex()}, f)
-    PASSWORD_FILE.chmod(0o600)
+    _write_secret(PASSWORD_FILE, json.dumps({"salt": salt.hex(), "hash": rec[1].hex()}))
     return rec
 
 
+def _write_secret(path, text):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    path.chmod(0o600)
+
+
+def load_totp():
+    """Clé (octets) du code à usage unique, ou None."""
+    try:
+        key = base64.b32decode(TOTP_FILE.read_text().strip())
+        return key if len(key) >= 10 else None
+    except (OSError, ValueError):
+        return None
+
+
+def totp_code(key, counter):
+    """Code à 6 chiffres de la RFC 6238 (celui de Google Authenticator) pour ce pas de 30 s."""
+    mac = hmac.new(key, struct.pack(">Q", counter), "sha1").digest()
+    off = mac[-1] & 15
+    return "%06d" % ((struct.unpack(">I", mac[off:off + 4])[0] & 0x7FFFFFFF) % 1_000_000)
+
+
+def totp_match(key, code, after=-1):
+    """Pas de temps du code s'il est bon (à 30 s près) et pas déjà utilisé, sinon None."""
+    code = "".join(c for c in code if c.isdigit())
+    now = int(time.time()) // 30
+    for counter in (now, now - 1, now + 1):
+        if counter > after and hmac.compare_digest(code.encode(), totp_code(key, counter).encode()):
+            return counter
+    return None
+
+
+def protected(app):
+    """Vrai si une connexion (mot de passe et/ou code) remplace le lien à jeton."""
+    return bool(app["password"] or app["totp"])
+
+
 def _session_sig(app, exp):
-    # Changer de mot de passe ou de jeton invalide toutes les sessions ouvertes.
-    key = hashlib.sha256(app["token"].encode() + app["password"][1]).digest()
+    # Changer de mot de passe, de clé de code ou de jeton invalide les sessions ouvertes.
+    key = hashlib.sha256(app["token"].encode() + (app["password"] or (b"", b""))[1]
+                         + (app["totp"] or b"")).digest()
     return hmac.new(key, str(exp).encode(), "sha256").hexdigest()
 
 
@@ -612,9 +651,10 @@ def valid_session(app, value):
 
 
 def authorized(request):
-    """Avec un mot de passe : session ouverte par /login. Sinon : jeton dans l'adresse."""
+    """Avec un mot de passe ou un code : session ouverte par la page de connexion.
+    Sinon : jeton dans l'adresse."""
     app = request.app
-    if app["password"]:
+    if protected(app):
         return valid_session(app, request.cookies.get(SESSION_COOKIE, ""))
     return hmac.compare_digest(request.query.get("t", "").encode(), app["token"].encode())
 
@@ -654,25 +694,61 @@ def _form_page(status=200, error="", **parts):
                         headers={"Cache-Control": "no-store"})
 
 
-def login_page(status=200, error=""):
-    return _form_page(
-        status, error, title="Mac", hint="Mot de passe pour piloter ce Mac.", footer="",
-        fields='<input type="password" name="password" placeholder="Mot de passe" '
-               'autocomplete="current-password" required autofocus>',
-        button="Se connecter")
+PASSWORD_FIELD = ('<input type="password" name="password" placeholder="Mot de passe" '
+                  'autocomplete="current-password" required autofocus>')
+CODE_FIELD = ('<input type="text" name="code" placeholder="Code à 6 chiffres" inputmode="numeric" '
+              'pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" required%s>')
+
+
+def login_page(app, status=200, error=""):
+    fields = PASSWORD_FIELD if app["password"] else ""
+    if app["totp"]:
+        fields += CODE_FIELD % ("" if app["password"] else " autofocus")
+    hint = ("Mot de passe et code Google Authenticator." if app["password"] and app["totp"]
+            else "Code de Google Authenticator." if app["totp"] else "Mot de passe.")
+    return _form_page(status, error, title="Mac", hint=hint + " Pour piloter ce Mac.",
+                      fields=fields, button="Se connecter", footer="")
+
+
+def _back(request):
+    return html.escape("/" + (f"?{request.query_string}" if request.query_string else ""))
+
+
+def _query(request):
+    return html.escape(f"?{request.query_string}" if request.query_string else "")
 
 
 def password_page(request, status=200, error=""):
-    back = "/" + (f"?{request.query_string}" if request.query_string else "")
+    also = " Il s'ajoute au code Google Authenticator." if request.app["totp"] else ""
     return _form_page(
         status, error, title="Mot de passe",
         hint=f"Au moins {MIN_PASSWORD} caractères. Il remplace le lien à jeton et "
-             "déconnecte les autres appareils.",
+             f"déconnecte les autres appareils.{also}",
         fields='<input type="password" name="password" placeholder="Nouveau mot de passe" '
                f'autocomplete="new-password" minlength="{MIN_PASSWORD}" required autofocus>'
                '<input type="password" name="confirm" placeholder="Encore une fois" '
                f'autocomplete="new-password" minlength="{MIN_PASSWORD}" required>',
-        button="Enregistrer", footer=f'<a href="{html.escape(back)}">Annuler</a>')
+        button="Enregistrer",
+        footer=f'<a href="/totp{_query(request)}">Utiliser Google Authenticator</a>'
+               f'<a href="{_back(request)}">Annuler</a>')
+
+
+def totp_page(request, key, status=200, error=""):
+    secret = base64.b32encode(key).decode().rstrip("=")
+    name = (local_name() or "Mac").removesuffix(".local")
+    uri = (f"otpauth://totp/{quote('Mac Remote')}:{quote(name)}?secret={secret}"
+           f"&issuer={quote('Mac Remote')}&digits=6&period=30")
+    spaced = " ".join(secret[i:i + 4] for i in range(0, len(secret), 4))
+    return _form_page(
+        status, error, title="Google Authenticator",
+        hint="1. Ajoute ce Mac à l'application. 2. Saisis le code à 6 chiffres qu'elle affiche. "
+             "Il remplace le lien à jeton et déconnecte les autres appareils.",
+        fields=f'<a class="btn" href="{html.escape(uri)}">Ajouter à l’application</a>'
+               f'<p>ou saisis cette clé à la main :</p><code>{spaced}</code>'
+               + CODE_FIELD % " autofocus",
+        button="Activer",
+        footer=f'<a href="/password{_query(request)}">Utiliser un mot de passe</a>'
+               f'<a href="{_back(request)}">Annuler</a>')
 
 
 def _open_session(request):
@@ -687,30 +763,68 @@ def _open_session(request):
 async def index(request):
     if authorized(request):
         return web.FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
-    if request.app["password"]:
-        return login_page(401)  # 401 : la télécommande sait ainsi que sa session a expiré
+    if protected(request.app):
+        return login_page(request.app, 401)  # 401 : la télécommande voit sa session expirée
     return web.Response(status=403, text="Jeton manquant ou invalide.")
 
 
 async def login(request):
     app = request.app
-    if not app["password"]:
+    if not protected(app):
         return web.Response(status=303, headers={"Location": "/"})
     if not same_origin(request):
         return web.Response(status=403)
     ip, guard = request.remote, app["guard"]
     wait = guard.locked(ip)
     if wait:
-        return login_page(429, f"Trop d'essais. Réessaie dans {int(wait) + 1} s.")
-    password = str((await request.post()).get("password", ""))[:256]
-    salt, digest = app["password"]
-    if not hmac.compare_digest(await asyncio.to_thread(_scrypt, password, salt), digest):
+        return login_page(app, 429, f"Trop d'essais. Réessaie dans {int(wait) + 1} s.")
+    data = await request.post()
+    good, step = True, None
+    if app["password"]:
+        salt, digest = app["password"]
+        password = str(data.get("password", ""))[:256]
+        good = hmac.compare_digest(await asyncio.to_thread(_scrypt, password, salt), digest)
+    if app["totp"]:  # un code ne sert qu'une fois
+        step = totp_match(app["totp"], str(data.get("code", ""))[:16], app["state"].get("step", -1))
+        good = good and step is not None
+    if not good:
         guard.fail(ip)
-        log.warning("mot de passe refusé depuis %s", ip)
+        log.warning("connexion refusée depuis %s", ip)
         await asyncio.sleep(1)
-        return login_page(401, "Mot de passe incorrect.")
+        what = ("Mot de passe ou code incorrect." if app["password"] and app["totp"]
+                else "Code incorrect." if app["totp"] else "Mot de passe incorrect.")
+        return login_page(app, 401, what)
+    if step is not None:
+        app["state"]["step"] = step
     guard.ok(ip)
-    log.info("connexion par mot de passe depuis %s", ip)
+    log.info("connexion acceptée depuis %s", ip)
+    return _open_session(request)
+
+
+async def set_totp(request):
+    """Associer Google Authenticator (ou une autre application de codes), depuis un appareil
+    déjà autorisé. La clé n'est enregistrée qu'une fois un premier code vérifié."""
+    app = request.app
+    if not authorized(request):
+        return web.Response(status=303, headers={"Location": "/"})
+    pending = app["state"].get("totp_pending")
+    if not pending or pending[1] < time.monotonic():
+        pending = app["state"]["totp_pending"] = (secrets.token_bytes(20), time.monotonic() + 900)
+    key = pending[0]
+    if request.method != "POST":
+        return totp_page(request, key)
+    if not same_origin(request):
+        return web.Response(status=403)
+    step = totp_match(key, str((await request.post()).get("code", ""))[:16])
+    if step is None:
+        return totp_page(request, key, 400, "Code incorrect : vérifie l'heure du téléphone "
+                                            "et réessaie avec le code affiché.")
+    _write_secret(TOTP_FILE, base64.b32encode(key).decode())
+    app["totp"] = key
+    app["state"]["step"] = step
+    del app["state"]["totp_pending"]
+    log.info("code Google Authenticator activé depuis %s : le lien à jeton ne marche plus",
+             request.remote)
     return _open_session(request)
 
 
@@ -879,9 +993,14 @@ def main():
                     help="choisit le mot de passe de la page de connexion, puis quitte")
     ap.add_argument("--clear-password", action="store_true",
                     help="supprime le mot de passe (retour au lien à jeton), puis quitte")
+    ap.add_argument("--clear-totp", action="store_true",
+                    help="supprime le code Google Authenticator, puis quitte")
     ap.add_argument("--dry-run", action="store_true",
                     help="mire + entrées journalisées (test sans Mac)")
     args = ap.parse_args()
+    if args.clear_totp:
+        TOTP_FILE.unlink(missing_ok=True)
+        return print("Code Google Authenticator supprimé. Relance le serveur s'il tourne déjà.")
     if args.set_password:
         return ask_password()
     if args.clear_password:
@@ -908,28 +1027,31 @@ def main():
         source = ScreenSource(args.max_width, args.fps)
 
     app = web.Application()
-    app.update(token=load_token(args.new_token), password=load_password(), guard=LoginGuard(),
+    app.update(token=load_token(args.new_token), password=load_password(), totp=load_totp(),
+               guard=LoginGuard(),
                input=inp, source=source, fps=args.fps, state={})
     app.router.add_get("/", index)
     app.router.add_post("/", login)
     app.router.add_route("*", "/password", set_password)
+    app.router.add_route("*", "/totp", set_totp)
     app.router.add_post("/offer", offer)
     app.router.add_get("/ws", ws_handler)
     app.on_shutdown.append(on_shutdown)
 
     hosts = [h for h in [local_name(), *local_addresses()] if h] or ["<adresse-du-mac>"]
     print("\nOuvre l'une de ces adresses dans Safari sur l'iPhone :")
-    if app["password"]:
+    if protected(app):
         for h in hosts:
             print(f"  http://{h}:{args.port}/")
-        print("La page demande le mot de passe. La première adresse ne change jamais.\n",
-              flush=True)
+        print("La page demande %s. La première adresse ne change jamais.\n" % " et ".join(
+            w for w, on in (("le mot de passe", app["password"]),
+                            ("le code Google Authenticator", app["totp"])) if on), flush=True)
     else:
         for h in hosts:
             print(f"  http://{h}:{args.port}/?t={app['token']}")
         print("Ce lien donne le contrôle total du Mac : ne le partage pas.\n"
-              "Pour une adresse sans jeton, choisis un mot de passe : bouton « Mot de passe » "
-              "de la page,\nou python3 server.py --set-password.\n", flush=True)
+              "Pour une adresse sans jeton : bouton « Sécurité » de la page (mot de passe ou "
+              "Google Authenticator).\n", flush=True)
     web.run_app(app, host=args.host, port=args.port, print=None)
 
 
