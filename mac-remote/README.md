@@ -80,3 +80,7 @@ Wi-Fi que tu ne maîtrises pas, passe par Tailscale et lance `server.py --host <
   cœurs ; baisse `--max-width` si l'image saccade.
 - Les raccourcis suivent la disposition clavier active au lancement du script : relance-le
   si tu en changes.
+- Tant que le téléphone regarde l'écran, macOS affiche l'icône de partage d'écran dans la
+  barre des menus. « Arrêter le partage » coupe l'image (écran noir sur le téléphone) mais
+  pas le clavier ni la souris ; recharger la page relance la capture. Pour tout couper,
+  arrête le script.

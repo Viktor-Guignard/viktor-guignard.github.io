@@ -326,6 +326,7 @@ class ScreenSource:
         self.sct = None
         self.sck = None  # démarré à la première image demandée, pas au lancement
         self.sck_failed = False
+        self._resume = False
 
     def _start_sck(self):
         try:
@@ -342,12 +343,20 @@ class ScreenSource:
         shot = self.sct.grab(self.sct.monitors[1])
         return np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
 
+    def resume(self):
+        """Nouvelle connexion : relance la capture si macOS l'avait arrêtée."""
+        self._resume = True
+
     def _grab(self):
+        resume, self._resume = self._resume, False
+        if self.sck is not None and self.sck.stopped and resume:
+            self.sck = None
         if self.sck is None and not self.sck_failed:
             self._start_sck()
-        arr = self.sck.latest(timeout=1.0) if self.sck else self._grab_mss()
-        if arr is None:  # pas encore de première image
-            arr = np.zeros((self.sck.height, self.sck.width, 4), np.uint8)
+        sck = self.sck
+        arr = sck.latest(timeout=1.0) if sck else self._grab_mss()
+        if arr is None:  # pas encore d'image, ou capture arrêtée depuis macOS : noir
+            arr = np.zeros((sck.height, sck.width, 4), np.uint8)
         w, h = _even_size(arr.shape[1], arr.shape[0], self.max_width)
         return VideoFrame.from_ndarray(arr, format="bgra").reformat(
             width=w, height=h, format="yuv420p")
@@ -389,7 +398,14 @@ def _sck_runtime():
         f.restype, f.argtypes = ctypes.c_int32, [vp, ctypes.c_uint64]
     objc.createOpaquePointerType("CMSampleBufferRef", b"^{opaqueCMSampleBuffer=}")
 
-    class MacRemoteStreamOutput(NSObject, protocols=[objc.protocolNamed("SCStreamOutput")]):
+    class MacRemoteStreamOutput(NSObject, protocols=[
+            objc.protocolNamed("SCStreamOutput"), objc.protocolNamed("SCStreamDelegate")]):
+        def stream_didStopWithError_(self, stream, error):
+            try:
+                self.owner._stopped(error)
+            except Exception as e:  # noqa: BLE001
+                log.warning("arrêt de capture mal géré : %s", e)
+
         def stream_didOutputSampleBuffer_ofType_(self, stream, sbuf, kind):
             if kind != SCK.SCStreamOutputTypeScreen:
                 return
@@ -425,6 +441,7 @@ class _SCKCapture:
         self._cond = threading.Condition()
         self._arr = None
         self._stream = None
+        self.stopped = False
 
         content, err = self._wait(SCK.SCShareableContent.getShareableContentWithCompletionHandler_)
         if err is not None or content is None:
@@ -444,9 +461,10 @@ class _SCKCapture:
         cfg.setShowsCursor_(False)  # la page dessine son propre curseur
         cfg.setQueueDepth_(3)
         flt = SCK.SCContentFilter.alloc().initWithDisplay_excludingWindows_(display, [])
-        stream = SCK.SCStream.alloc().initWithFilter_configuration_delegate_(flt, cfg, None)
-        self._output = rt["Output"].alloc().init()
+        self._output = rt["Output"].alloc().init()  # reçoit les images et l'arrêt
         self._output.owner = self
+        stream = SCK.SCStream.alloc().initWithFilter_configuration_delegate_(
+            flt, cfg, self._output)
         ok, err = stream.addStreamOutput_type_sampleHandlerQueue_error_(
             self._output, SCK.SCStreamOutputTypeScreen, None, None)
         if not ok:
@@ -473,9 +491,21 @@ class _SCKCapture:
             self._arr = arr
             self._cond.notify_all()
 
+    def _stopped(self, error):
+        """macOS a coupé le flux (« Arrêter le partage » dans la barre des menus, veille…).
+
+        Sans cela, la dernière image resterait figée sur le téléphone.
+        """
+        why = error.localizedDescription() if error is not None else "sans erreur"
+        log.warning("capture arrêtée par macOS (%s) : image noire ; recharge la page du "
+                    "téléphone pour la relancer", why)
+        with self._cond:
+            self.stopped, self._stream, self._arr = True, None, None
+            self._cond.notify_all()
+
     def latest(self, timeout):
         with self._cond:
-            if self._arr is None:
+            if self._arr is None and not self.stopped:
                 self._cond.wait(timeout)
             return self._arr
 
@@ -549,6 +579,8 @@ async def offer(request):
         await state["pc"].close()
     pc = RTCPeerConnection(RTCConfiguration(iceServers=[]))
     state["pc"] = pc
+    if hasattr(app["source"], "resume"):
+        app["source"].resume()
     sender = pc.addTrack(ScreenTrack(app["source"], app["fps"]))
     caps = RTCRtpSender.getCapabilities("video").codecs
     h264 = [c for c in caps if c.mimeType == "video/H264"]
