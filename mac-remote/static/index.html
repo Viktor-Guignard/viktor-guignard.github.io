@@ -10,13 +10,15 @@
 <title>Mac</title>
 <style>
   :root {
-    --bg: #0b0b0d; --deck: #131316; --key: #2a2a30; --key-fn: #1d1d22;
-    --key-on: #e8e2d6; --ink: #f2f0ea; --ink-dim: #8c8a85; --pad: #1a1a1f; --line: #2c2c33;
+    --bg: #000; --deck: #2a2a2c; --deck-lo: #1f1f21; --well: #0a0a0b;
+    --key: #161618; --key-hi: #2c2c2f; --legend: #ececee; --led: #32d74b;
+    --ink: #f5f5f7; --ink-dim: #98989d; --line: #3a3a3d;
+    --kh: clamp(31px, 5.3dvh, 46px); --gap: 3px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
-    font: 500 15px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font: 400 15px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     touch-action: none; overscroll-behavior: none;
   }
@@ -38,35 +40,63 @@
 
   #bar {
     flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-    padding: 5px 8px; background: var(--deck); border-top: 1px solid var(--line);
+    padding: 6px 10px 2px; background: var(--deck);
+    border-top: 1px solid var(--line);
   }
   #bar button {
-    appearance: none; border: 0; border-radius: 7px; padding: 6px 10px; min-width: 40px;
-    background: var(--key-fn); color: var(--ink-dim); font: inherit; font-size: 12px;
+    appearance: none; border: 0; border-radius: 999px; padding: 5px 11px; min-width: 40px;
+    background: rgba(255,255,255,.07); color: var(--ink-dim); font: inherit; font-size: 11px;
+    letter-spacing: .02em;
   }
-  #deck { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
-          gap: 6px; padding: 0 6px 6px; background: var(--deck); }
+  /* Coque aluminium « noir sidéral », puits de clavier noir, touches noires mates. */
+  #deck {
+    flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+    padding: 4px 8px 8px; background: linear-gradient(var(--deck), var(--deck-lo));
+  }
   #deck.nokb #kb { display: none; }
 
-  #kb { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; }
-  .row { display: flex; gap: 4px; }
-  .key {
-    flex: 1 1 0; min-width: 0; height: clamp(30px, 5.2dvh, 44px);
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 7px; background: var(--key); color: var(--ink); font-size: 16px;
+  #kb {
+    flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--gap);
+    padding: 4px; border-radius: 10px; background: var(--well);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.8), 0 .5px 0 rgba(255,255,255,.08);
   }
-  .key.fn { background: var(--key-fn); color: var(--ink-dim); font-size: 12px; }
-  .key.w15 { flex-grow: 1.5; } .key.w2 { flex-grow: 2; } .key.w5 { flex-grow: 5; }
-  .key.hit { background: #4a4a54; }
-  .key.on { background: var(--key-on); color: #111; }
+  .row { display: flex; gap: var(--gap); align-items: flex-end; }
+  .key {
+    position: relative; flex: 1 1 0; min-width: 0; height: var(--kh);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px; background: var(--key); color: var(--legend);
+    font-size: 15px; font-weight: 400;
+    box-shadow: inset 0 .5px 0 rgba(255,255,255,.09), inset 0 -1px 0 rgba(0,0,0,.6);
+  }
+  /* Touches de fonction : légende dans un coin, comme sur un clavier Apple. */
+  .key.fn { font-size: 13px; align-items: flex-end; padding: 0 6px 5px; }
+  .key.fn.l { justify-content: flex-start; }
+  .key.fn.r { justify-content: flex-end; }
+  .key.word { font-size: 10px; letter-spacing: .01em; }
+  .key.mod { flex-direction: column; align-items: flex-end; justify-content: space-between;
+             padding: 5px 6px; font-size: 13px; }
+  .key.mod small { align-self: stretch; text-align: center; font-size: 8.5px; color: var(--legend); }
+  .key.w12 { flex-grow: 1.25; } .key.w15 { flex-grow: 1.5; } .key.w18 { flex-grow: 1.8; }
+  .key.w5 { flex-grow: 4.6; }
+  .key.half { height: calc((var(--kh) - var(--gap)) / 2); font-size: 9px; border-radius: 4px; }
+  .stack { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
+  .stack .key { flex: 0 0 auto; }
+  .key.hit { background: var(--key-hi); }
+  .key.on { background: var(--key-hi); }
+  .key.on::before {                      /* témoin vert, façon verrouillage majuscules */
+    content: ""; position: absolute; left: 5px; top: 5px; width: 4px; height: 4px;
+    border-radius: 50%; background: var(--led); box-shadow: 0 0 4px var(--led);
+  }
+  @media (max-width: 560px) {            /* trop étroit pour « command » en toutes lettres */
+    .key.mod { align-items: center; justify-content: center; font-size: 15px; }
+    .key.mod small { display: none; }
+  }
 
   #pad {
-    position: relative; flex: 1 1 0; min-height: 60px; border-radius: 14px;
-    background: var(--pad); border: 1px solid var(--line);
-  }
-  #pad::after {
-    content: "trackpad"; position: absolute; inset: auto 0 10px 0; text-align: center;
-    color: #3a3a42; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    position: relative; flex: 1 1 0; min-height: 60px; align-self: center;
+    width: min(100%, 520px); border-radius: 12px;
+    background: linear-gradient(#2d2d30, #262628);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
   }
 </style>
 </head>
@@ -252,9 +282,10 @@ const LAYOUTS = {
   QWERTY: ['qwertyuiop', "asdfghjkl'", 'zxcvbnm,.'],
 };
 const SYMBOLS = ['-_/:;()@&"', '!?+=*%#€$~', 'éèàçù[]{}<>|\\'];
-const LABELS = { Escape: 'esc', Backspace: '⌫', Tab: '⇥', Enter: '⏎', Space: '',
-  ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
-  shift: '⇧', ctrl: 'ctrl', alt: 'opt', cmd: '⌘', sym: '#+=' };
+const LABELS = { Escape: 'esc', Backspace: '⌫', Tab: '⇥', Enter: '↩', Space: '',
+  ArrowLeft: '◀', ArrowRight: '▶', ArrowUp: '▲', ArrowDown: '▼',
+  shift: '⇧', ctrl: '⌃', alt: '⌥', cmd: '⌘', sym: '#+=' };
+const WORDS = { ctrl: 'control', alt: 'option', cmd: 'command' };
 const MODS = ['shift', 'ctrl', 'alt', 'cmd'];
 const kb = $('kb');
 let layout = (navigator.language || '').toLowerCase().startsWith('fr') ? 'AZERTY' : 'QWERTY';
@@ -266,24 +297,33 @@ function keyEl(k, cls) {
   const d = document.createElement('div');
   d.className = 'key ' + (cls || '');
   d.dataset.k = k;
-  const letter = k.length === 1;
-  d.textContent = letter ? (active.has('shift') ? k.toUpperCase() : k) : LABELS[k];
+  // Légendes en capitales comme sur un clavier Apple ; les accentuées restent telles quelles.
+  d.textContent = k.length === 1 ? (symbols ? k : k.toUpperCase()) : LABELS[k];
+  if (WORDS[k]) d.insertAdjacentHTML('beforeend', `<small>${WORDS[k]}</small>`);
   if (active.has(k) || (k === 'sym' && symbols)) d.classList.add('on');
   return d;
 }
 function render() {
   const rows = symbols ? SYMBOLS : LAYOUTS[layout];
   const spec = [
-    [['Escape', 'fn'], ...'1234567890', ['Backspace', 'fn w15']],
-    [['Tab', 'fn'], ...rows[0]],
-    [...rows[1], ['Enter', 'fn w15']],
-    [['shift', 'fn w15'], ...rows[2], ['ArrowUp', 'fn']],
-    [['ctrl', 'fn'], ['alt', 'fn'], ['cmd', 'fn'], ['Space', 'w5'], ['sym', 'fn'],
-     ['ArrowLeft', 'fn'], ['ArrowDown', 'fn'], ['ArrowRight', 'fn']],
+    [['Escape', 'fn l word'], ...'1234567890', ['Backspace', 'fn r w15']],
+    [['Tab', 'fn l w15'], ...rows[0]],
+    [...rows[1], ['Enter', 'fn r w15']],
+    [['shift', 'fn l w18'], ...rows[2], ['shift', 'fn r w18']],
+    [['ctrl', 'mod w12'], ['alt', 'mod w12'], ['cmd', 'mod w15'], ['Space', 'w5'],
+     ['sym', 'fn word w12'], ['ArrowLeft', 'half'],
+     [['ArrowUp', 'half'], ['ArrowDown', 'half']], ['ArrowRight', 'half']],
   ];
+  const build = k => {
+    if (!Array.isArray(k)) return keyEl(k);
+    if (!Array.isArray(k[0])) return keyEl(k[0], k[1]);
+    const st = document.createElement('div'); st.className = 'stack';   // ▲ sur ▼
+    st.append(...k.map(build));
+    return st;
+  };
   kb.replaceChildren(...spec.map(r => {
     const row = document.createElement('div'); row.className = 'row';
-    row.append(...r.map(k => Array.isArray(k) ? keyEl(k[0], k[1]) : keyEl(k)));
+    row.append(...r.map(build));
     return row;
   }));
   $('btn-layout').textContent = layout;
